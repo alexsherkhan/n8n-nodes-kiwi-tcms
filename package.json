@@ -28,6 +28,7 @@
   "scripts": {
     "preinstall": "npx only-allow pnpm",
     "build": "tsc && gulp build:icons",
+    "postbuild": "cp nodes/KiwiTcms/tcms_script.py dist/nodes/KiwiTcms/tcms_script.py && chmod +x dist/nodes/KiwiTcms/tcms_script.py",
     "dev": "tsc --watch",
     "format": "prettier nodes credentials --write",
     "lint": "eslint nodes credentials package.json",

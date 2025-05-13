@@ -107,6 +107,9 @@ You must have a valid Kiwi TCMS user account. No OAuth or API token is required 
    ```
 
 2. Make sure `tcms_script.py` is executable and accessible.
+   ```
+	 chmod +x tcms_script.py
+   ```
 
 3. Set `N8N_CUSTOM_EXTENSIONS` to include the folder containing this node:
 
