@@ -122,7 +122,7 @@ export class KiwiTcms implements INodeType {
         const results: INodeExecutionData[] = [];
 
         for (let i = 0; i < items.length; i++) {
-            const credentials = await this.getCredentials('kiwiTCMSApi');
+            const credentials = await this.getCredentials('kiwiTcmsApi');
             const url = credentials.url;
             const username = credentials.username;
             const password = credentials.password;
