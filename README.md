@@ -1,46 +1,141 @@
-![Banner image](https://user-images.githubusercontent.com/10284570/173569848-c624317f-42b1-45a6-ab09-f0ea3c247648.png)
+# n8n-nodes-_kiwi-tcms_
 
-# n8n-nodes-starter
+This is an n8n community node. It lets you use _[Kiwi TCMS](https://kiwitcms.org/)_ in your n8n workflows.
 
-This repo contains example nodes to help you get started building your own custom integrations for [n8n](n8n.io). It includes the node linter and other dependencies.
+Kiwi TCMS is an open source test case management system that helps teams manage test plans, test cases, and test runs, with full API access for automation and integration.
 
-To make your custom node available to the community, you must create it as an npm package, and [submit it to the npm registry](https://docs.npmjs.com/packages-and-modules/contributing-packages-to-the-registry).
+[n8n](https://n8n.io/) is a [fair-code licensed](https://docs.n8n.io/reference/license/) workflow automation platform.
 
-## Prerequisites
+[Installation](#installation)  
+[Operations](#operations)  
+[Credentials](#credentials)  <!-- delete if no auth needed -->  
+[Compatibility](#compatibility)  
+[Usage](#usage)  <!-- delete if not using this section -->  
+[Resources](#resources)  
+[Version history](#version-history)  <!-- delete if not using this section -->  
 
-You need the following installed on your development machine:
+## 🛠 Installation
 
-* [git](https://git-scm.com/downloads)
-* Node.js and pnpm. Minimum version Node 18. You can find instructions on how to install both using nvm (Node Version Manager) for Linux, Mac, and WSL [here](https://github.com/nvm-sh/nvm). For Windows users, refer to Microsoft's guide to [Install NodeJS on Windows](https://docs.microsoft.com/en-us/windows/dev-environment/javascript/nodejs-on-windows).
-* Install n8n with:
+Follow the [official installation guide](https://docs.n8n.io/integrations/community-nodes/installation/) in the n8n documentation for community nodes.
+
+Additionally, for this node to work properly:
+
+### ✅ Requirements
+
+* Python 3 must be installed and accessible via `python3`
+
+* The `tcms-api` Python package must be installed:
+
+  ```bash
+  pip3 install tcms-api
   ```
-  pnpm install n8n -g
+
+* Ensure your n8n instance has access to this custom node by setting the environment variable:
+
+  ```bash
+  export N8N_CUSTOM_EXTENSIONS=/path/to/custom-nodes
   ```
-* Recommended: follow n8n's guide to [set up your development environment](https://docs.n8n.io/integrations/creating-nodes/build/node-development-environment/).
 
-## Using this starter
+  Or add it to your `.env`:
 
-These are the basic steps for working with the starter. For detailed guidance on creating and publishing nodes, refer to the [documentation](https://docs.n8n.io/integrations/creating-nodes/).
+  ```
+  N8N_CUSTOM_EXTENSIONS=/root/.n8n/custom-nodes
+  ```
 
-1. [Generate a new repository](https://github.com/n8n-io/n8n-nodes-starter/generate) from this template repository.
-2. Clone your new repo:
+* Restart n8n after adding the custom node:
+
+  ```bash
+  pm2 restart n8n
+  # or
+  systemctl restart n8n
+  ```
+
+
+## 🧩 Operations
+
+This node allows you to dynamically call any method from the [Kiwi TCMS XML-RPC API](https://kiwitcms.readthedocs.io/en/latest/modules/tcms.rpc.api.html). Supported operations include:
+
+* `TestCase.*` — create, update, filter test cases
+* `TestPlan.*` — manage test plans and their relationships
+* `TestRun.*` — manage and execute test runs
+* `TestExecution.*` — track and annotate test executions
+* `Product.*`, `Build.*`, `Component.*`, `Tag.*`, etc.
+
+Simply choose an action from the dropdown and provide the corresponding parameters in JSON format.
+
+---
+
+## 🔐 Credentials
+
+This node uses a custom credential type: **Kiwi TCMS API**
+
+To set up credentials:
+
+1. Go to **Credentials** in n8n.
+2. Click **New**, then select **Kiwi TCMS API**.
+3. Fill in:
+
+   * **API URL** (e.g. `https://your-kiwi-tcms-instance/xml-rpc/`)
+   * **Username**
+   * **Password**
+
+You must have a valid Kiwi TCMS user account. No OAuth or API token is required — just basic login credentials.
+
+---
+
+## 🧪 Compatibility
+
+* ✅ Minimum n8n version: `1.80.0`
+* ✅ Tested with:
+
+  * n8n `1.90.2`
+  * Python `3.11`
+  * `tcms-api` Python package (latest)
+* ⚠️ Known incompatibilities:
+
+  * This node relies on having `python3` and `tcms-api` installed on the host machine
+  * Not compatible with n8n cloud (due to Python execution)
+
+---
+
+## 🚀 Usage
+
+1. Install Python 3 and the `tcms-api` library:
+
+   ```bash
+   pip3 install tcms-api
    ```
-   git clone https://github.com/<your organization>/<your-repo-name>.git
+
+2. Make sure `tcms_script.py` is executable and accessible.
+
+3. Set `N8N_CUSTOM_EXTENSIONS` to include the folder containing this node:
+
    ```
-3. Run `pnpm i` to install dependencies.
-4. Open the project in your editor.
-5. Browse the examples in `/nodes` and `/credentials`. Modify the examples, or replace them with your own nodes.
-6. Update the `package.json` to match your details.
-7. Run `pnpm lint` to check for errors or `pnpm lintfix` to automatically fix errors when possible.
-8. Test your node locally. Refer to [Run your node locally](https://docs.n8n.io/integrations/creating-nodes/test/run-node-locally/) for guidance.
-9. Replace this README with documentation for your node. Use the [README_TEMPLATE](README_TEMPLATE.md) to get started.
-10. Update the LICENSE file to use your details.
-11. [Publish](https://docs.npmjs.com/packages-and-modules/contributing-packages-to-the-registry) your package to npm.
+   export N8N_CUSTOM_EXTENSIONS=/root/.n8n/custom-nodes
+   ```
 
-## More information
+4. Restart your n8n instance.
 
-Refer to our [documentation on creating nodes](https://docs.n8n.io/integrations/creating-nodes/) for detailed information on building your own nodes.
+5. In a workflow, drag in the **Python TCMS** node, select an action (e.g. `TestCase.filter`), and enter JSON parameters:
 
-## License
+   ```json
+   {
+     "pk": 123
+   }
+   ```
 
-[MIT](https://github.com/n8n-io/n8n-nodes-starter/blob/master/LICENSE.md)
+📚 If you're new to n8n, check out the [Try it out guide](https://docs.n8n.io/try-it-out/) to get started.
+
+
+## Resources
+
+* [n8n community nodes documentation](https://docs.n8n.io/integrations/community-nodes/)
+* [Kiwi TCMS XML-RPC API](https://kiwitcms.readthedocs.io/en/latest/modules/tcms.rpc.api.html)
+
+## Version history
+| Version | Description                                                                                                                                            | Compatibility                         |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------- |
+| 1.0.0   | Initial release. Supports all major Kiwi TCMS XML-RPC methods dynamically.                                                                             | Requires `n8n >= 1.80.0`, Python 3.6+ |
+
+
+
