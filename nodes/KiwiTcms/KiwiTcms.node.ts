@@ -135,7 +135,7 @@ export class KiwiTcms implements INodeType {
 							.replace(/\n/g, '\\n')    // escape newlines
 							.replace(/\r/g, '\\r')    // escape carriage returns
 							.replace(/\t/g, '\\t');   // escape tabs
-						let params = rawParams ? JSON.parse(rawParams) : {};
+						let params = JSON.parse(rawParams);
 
             const input = JSON.stringify({ url, username, password, action, params });
 
