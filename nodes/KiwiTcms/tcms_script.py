@@ -26,8 +26,13 @@ def main():
         sys.exit(0)
 
     except Exception as e:
-        print(json.dumps({"error": str(e)}))
-        sys.exit(1)
+      import traceback
+      print(json.dumps({
+					"error": str(e),
+					"trace": traceback.format_exc()
+			}))
+      sys.exit(1)
+
 
 if __name__ == '__main__':
     main()
