@@ -111,7 +111,7 @@ export class KiwiTcms implements INodeType {
                 name: 'params',
                 type: 'json',
                 default: '{}',
-                description: 'JSON object with parameters for the selected action'
+                description: 'JSON object with parameters for the selected action',
             },
         ],
     };
@@ -128,7 +128,15 @@ export class KiwiTcms implements INodeType {
             const password = credentials.password;
             const action = this.getNodeParameter('action', i) as string;
 
-            const params = JSON.parse(this.getNodeParameter("params", i) as string);
+						let rawParams = this.getNodeParameter('params', i) as string;
+						rawParams = rawParams
+							.replace(/\\/g, '\\\\')   // escape backslash
+							.replace(/"/g, '\\"')     // escape double quotes
+							.replace(/\n/g, '\\n')    // escape newlines
+							.replace(/\r/g, '\\r')    // escape carriage returns
+							.replace(/\t/g, '\\t');   // escape tabs
+						let params = rawParams ? JSON.parse(rawParams) : {};
+
             const input = JSON.stringify({ url, username, password, action, params });
 
             const result = await new Promise<any>((resolve, reject) => {
