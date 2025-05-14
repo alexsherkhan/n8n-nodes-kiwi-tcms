@@ -3,6 +3,7 @@ import {
     INodeExecutionData,
     INodeType,
     INodeTypeDescription,
+		NodeOperationError,
 } from 'n8n-workflow';
 import * as path from 'path';
 import { spawn } from 'node:child_process';
@@ -135,7 +136,12 @@ export class KiwiTcms implements INodeType {
 							.replace(/\n/g, '\\n')    // escape newlines
 							.replace(/\r/g, '\\r')    // escape carriage returns
 							.replace(/\t/g, '\\t');   // escape tabs
-						let params = JSON.parse(rawParams);
+						let params = '';
+						try {
+							params = JSON.parse(rawParams);
+						} catch (e) {
+							throw new NodeOperationError(this.getNode(), `Invalid JSON: ${e.message}`);
+						}
 
             const input = JSON.stringify({ url, username, password, action, params });
 
