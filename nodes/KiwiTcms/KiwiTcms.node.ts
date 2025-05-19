@@ -129,19 +129,30 @@ export class KiwiTcms implements INodeType {
             const password = credentials.password;
             const action = this.getNodeParameter('action', i) as string;
 
-						let rawParams = this.getNodeParameter('params', i) as string;
-						rawParams = rawParams
-							.replace(/\\/g, '\\\\')   // escape backslash
-							.replace(/"/g, '\\"')     // escape double quotes
-							.replace(/\n/g, '\\n')    // escape newlines
-							.replace(/\r/g, '\\r')    // escape carriage returns
-							.replace(/\t/g, '\\t');   // escape tabs
-						let params = '';
-						try {
-							params = JSON.parse(rawParams);
-						} catch (e) {
-							throw new NodeOperationError(this.getNode(), `Invalid JSON: ${e.message}`);
-						}
+				let params = {};
+				try {
+   					const rawParams = this.getNodeParameter('params', i) as string;
+   					params = rawParams ? JSON.parse(rawParams) : {};
+
+    				const escapeStringValues = (obj: any) => {
+        				for (const key in obj) {
+            				if (typeof obj[key] === 'string') {
+                				obj[key] = obj[key]
+                    			.replace(/\\/g, '\\\\')
+                    			.replace(/"/g, '\\"')
+                    			.replace(/\n/g, '\\n')
+                    			.replace(/\r/g, '\\r')
+                    			.replace(/\t/g, '\\t');
+            				} 	else if (typeof obj[key] === 'object' && obj[key] !== null) {
+                		escapeStringValues(obj[key]); 
+            		}
+        }
+    };
+    
+    			escapeStringValues(params);
+		} 			catch (e) {
+    		throw new NodeOperationError(this.getNode(), `Invalid JSON: ${e.message}\nInput: ${rawParams}`);
+		}
 
             const input = JSON.stringify({ url, username, password, action, params });
 
