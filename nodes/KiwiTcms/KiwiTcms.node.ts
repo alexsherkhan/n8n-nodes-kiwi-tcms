@@ -130,29 +130,32 @@ export class KiwiTcms implements INodeType {
             const action = this.getNodeParameter('action', i) as string;
 
 				let params = {};
-				try {
-   					const rawParams = this.getNodeParameter('params', i) as string;
-   					params = rawParams ? JSON.parse(rawParams) : {};
+let rawParams = ''; 
 
-    				const escapeStringValues = (obj: any) => {
-        				for (const key in obj) {
-            				if (typeof obj[key] === 'string') {
-                				obj[key] = obj[key]
-                    			.replace(/\\/g, '\\\\')
-                    			.replace(/"/g, '\\"')
-                    			.replace(/\n/g, '\\n')
-                    			.replace(/\r/g, '\\r')
-                    			.replace(/\t/g, '\\t');
-            				} 	else if (typeof obj[key] === 'object' && obj[key] !== null) {
-                		escapeStringValues(obj[key]); 
-            		}
+try {
+    rawParams = this.getNodeParameter('params', i) as string;
+    params = rawParams ? JSON.parse(rawParams) : {};
+
+    
+    const escapeStringValues = (obj: any) => {
+        for (const key in obj) {
+            if (typeof obj[key] === 'string') {
+                obj[key] = obj[key]
+                    .replace(/\\/g, '\\\\')
+                    .replace(/"/g, '\\"')
+                    .replace(/\n/g, '\\n')
+                    .replace(/\r/g, '\\r')
+                    .replace(/\t/g, '\\t');
+            } else if (typeof obj[key] === 'object' && obj[key] !== null) {
+                escapeStringValues(obj[key]); 
+            }
         }
     };
     
-    			escapeStringValues(params);
-		} 			catch (e) {
-    		throw new NodeOperationError(this.getNode(), `Invalid JSON: ${e.message}\nInput: ${rawParams}`);
-		}
+    escapeStringValues(params);
+} catch (e) {
+    throw new NodeOperationError(this.getNode(), `Invalid JSON: ${e.message}\nInput: ${rawParams}`);
+}
 
             const input = JSON.stringify({ url, username, password, action, params });
 
