@@ -2,6 +2,20 @@ import sys
 import json
 from tcms_api import TCMS
 
+def process_text(text):
+    """Text Processing with Formatting Preserved"""
+    if not isinstance(text, str):
+        return text
+    return text.replace('\\n', '\n').replace('\\t', '\t')
+
+def process_params(params):
+    """Parameter normalization with structure preservation"""
+    if isinstance(params, dict):
+        return {k: process_text(v) if isinstance(v, str) else v for k, v in params.items()}
+    elif isinstance(params, list):
+        return [process_text(item) if isinstance(item, str) else item for item in params]
+    return params
+
 def main():
     try:
         args = json.loads(sys.stdin.read())
@@ -13,8 +27,9 @@ def main():
 
         object_name, method_name = args["action"].split('.', 1)
         rpc_method = getattr(getattr(client.exec, object_name), method_name)
-        params = args.get("params", {})
+        params = process_params(args.get("params", {}))
 
+        # Special treatment for methods
         if args["action"] == "TestPlan.add_case":
             if isinstance(params, dict):
                 params = [params.get("plan_id"), params.get("case_id")]
@@ -25,7 +40,15 @@ def main():
                 raise ValueError("TestPlan.add_case requires exactly 2 parameters: plan_id and case_id")
             
             result = rpc_method(int(params[0]), int(params[1]))
+        
+        elif args["action"] in ["TestPlan.create", "TestCase.create"]:
+            # We process text separately for the creation methods
+            if isinstance(params, dict) and "text" in params:
+                params["text"] = process_text(params["text"])
+            result = rpc_method(params)
+        
         else:
+            # Standard processing
             if isinstance(params, list):
                 result = rpc_method(*params)
             elif isinstance(params, dict):
@@ -40,7 +63,7 @@ def main():
         import traceback
         error_info = {
             "error": str(e),
-            "trace": traceback.format_exc(),
+            "traceback": traceback.format_exc(),
             "input_args": args,
             "params_received": params if 'params' in locals() else None
         }
