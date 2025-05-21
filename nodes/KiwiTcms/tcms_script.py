@@ -5,35 +5,38 @@ from tcms_api import TCMS
 def preserve_formatting(text):
     """
     Preserves Markdown formatting and newlines in text
-    - Maintains **bold** markers
+    - Maintains **bold** and *italic* markers
     - Keeps original line breaks
-    - Safely handles None/empty values
+    - Handles None/empty values safely
     """
     if not isinstance(text, str):
         return text
         
-    # Protect Markdown formatting during processing
-    protected = text.replace('**', '[[BOLD]]')
+    # Step 1: Protect formatting markers
+    protected = text.replace('**', '[[BOLD]]').replace('*', '[[ITALIC]]')
     
-    # Normalize line endings (Windows/Mac/Unix)
-    protected = protected.replace('\r\n', '\n').replace('\r', '\n')
+    # Step 2: Protect paragraph breaks (double newlines)
+    protected = protected.replace('\n\n', '[[PARAGRAPH]]')
     
-    # Remove only harmful control characters (ASCII 0-31 except \t, \n)
+    # Step 3: Protect single newlines
+    protected = protected.replace('\n', '[[NEWLINE]]')
+    
+    # Step 4: Remove harmful control characters
     cleaned = ''.join(
         c for c in protected 
-        if ord(c) >= 32 or c in ['\t', '\n']
+        if ord(c) >= 32 or c in ['\t', '\r']
     )
     
-    # Restore original formatting
-    return cleaned.replace('[[BOLD]]', '**')
+    # Step 5: Restore all formatting
+    restored = cleaned.replace('[[PARAGRAPH]]', '\n\n')
+    restored = restored.replace('[[NEWLINE]]', '\n')
+    restored = restored.replace('[[BOLD]]', '**')
+    restored = restored.replace('[[ITALIC]]', '*')
+    
+    return restored
 
 def process_params(params):
-    """
-    Recursively processes parameters while preserving:
-    - Nested structures (dicts/lists)
-    - Text formatting
-    - Data types
-    """
+    """Recursively processes all parameters while preserving structure"""
     if isinstance(params, dict):
         return {k: preserve_formatting(v) if isinstance(v, str) else process_params(v) 
                 for k, v in params.items()}
@@ -42,60 +45,41 @@ def process_params(params):
                 for item in params]
     return params
 
+def execute_rpc(client, action, params):
+    """Handles special RPC method cases"""
+    if action == "TestPlan.add_case":
+        if isinstance(params, dict):
+            params = [params.get("plan_id"), params.get("case_id")]
+        return client.exec.TestPlan.add_case(*map(int, params[:2]))
+    
+    object_name, method_name = action.split('.', 1)
+    method = getattr(getattr(client.exec, object_name), method_name)
+    
+    if isinstance(params, list):
+        return method(*params)
+    return method(params)
+
 def main():
     try:
-        # Parse and validate input
         args = json.loads(sys.stdin.read())
-        client = TCMS(
-            url=args["url"],
-            username=args["username"],
-            password=args["password"]
-        )
-
-        # Extract method details
-        object_name, method_name = args["action"].split('.', 1)
-        rpc_method = getattr(getattr(client.exec, object_name), method_name)
+        client = TCMS(args["url"], args["username"], args["password"])
         
-        # Process parameters with formatting preservation
-        params = process_params(args.get("params", {}))
-
-        # Special method handling
-        if args["action"] == "TestPlan.add_case":
-            # Convert parameter formats to [plan_id, case_id]
-            if isinstance(params, dict):
-                params = [params.get("plan_id"), params.get("case_id")]
-            elif not isinstance(params, list):
-                params = [params]
-            
-            if len(params) != 2:
-                raise ValueError("TestPlan.add_case requires exactly 2 parameters: plan_id and case_id")
-            
-            result = rpc_method(int(params[0]), int(params[1]))
-        else:
-            # Standard execution
-            if isinstance(params, list):
-                result = rpc_method(*params)
-            elif isinstance(params, dict):
-                result = rpc_method(params)
-            else:
-                result = rpc_method(params)
-
-        # Return successful result
+        processed_params = process_params(args.get("params", {}))
+        result = execute_rpc(client, args["action"], processed_params)
+        
         print(json.dumps(result, default=str))
         sys.exit(0)
 
     except Exception as e:
-        # Enhanced error reporting
         error_info = {
             "error": str(e),
             "action": args.get("action"),
             "input_params": {
                 "url": args.get("url"),
-                "username": args.get("username"),
-                "params_received": params if 'params' in locals() else None
+                "username": "*****"  # Masked for security
             },
-            "python_version": sys.version,
-            "platform": sys.platform
+            "params_sample": {k: str(v)[:50] + "..." if isinstance(v, str) else v 
+                           for k, v in args.get("params", {}).items()}
         }
         print(json.dumps(error_info), file=sys.stderr)
         sys.exit(1)
