@@ -3,86 +3,80 @@ import json
 import re
 from tcms_api import TCMS
 
-def encode_newlines(text):
-    """Replace real newlines with temporary markers before JSON serialization"""
-    if not isinstance(text, str):
-        return text
-    return text.replace('\n', '⏎')  # Using special symbol
-
-def decode_newlines(text):
-    """Restore newlines after JSON serialization"""
-    if not isinstance(text, str):
-        return text
-    return text.replace('⏎', '\n')
-
-def process_text_content(text):
-    """Main text processing with format preservation"""
+def protect_text(text):
+    """Protect special characters before JSON serialization"""
     if not isinstance(text, str):
         return text
         
-    # 1. Protect Markdown formatting
-    protected = text.replace('**', '〚B〛').replace('*', '〚I〛')
+    # Step 1: Replace newlines with Unicode placeholder
+    protected = text.replace('\n', '↲')
     
-    # 2. Encode newlines for JSON safety
-    encoded = encode_newlines(protected)
+    # Step 2: Protect Markdown formatting
+    protected = protected.replace('**', '〚bold〛').replace('*', '〚italic〛')
     
-    # 3. Clean harmful characters (preserve encoded newlines)
-    cleaned = ''.join(
-        c for c in encoded 
-        if ord(c) >= 32 or c == '⏎'
-    )
-    
-    # 4. Restore everything
-    restored = decode_newlines(cleaned)
-    return restored.replace('〚B〛', '**').replace('〚I〛', '*')
+    return protected
 
-def process_params(params):
-    """Deep processing of all parameters"""
-    if isinstance(params, dict):
-        return {k: process_text_content(v) if isinstance(v, str) else process_params(v) 
-                for k, v in params.items()}
-    elif isinstance(params, list):
-        return [process_text_content(item) if isinstance(item, str) else process_params(item) 
-                for item in params]
-    return params
+def restore_text(text):
+    """Restore original formatting after JSON processing"""
+    if not isinstance(text, str):
+        return text
+        
+    # Step 1: Restore Markdown
+    restored = text.replace('〚bold〛', '**').replace('〚italic〛', '*')
+    
+    # Step 2: Restore newlines
+    restored = restored.replace('↲', '\n')
+    
+    # Step 3: Clean remaining control chars
+    return ''.join(c for c in restored if ord(c) >= 32 or c in ['\n', '\t'])
 
-def execute_kiwi_method(client, action, params):
-    """Execute Kiwi TCMS API method with proper parameter handling"""
-    if action == "TestPlan.add_case":
-        if isinstance(params, dict):
-            params = [params.get("plan_id"), params.get("case_id")]
-        return client.exec.TestPlan.add_case(*map(int, params[:2]))
-    
-    obj, method = action.split('.', 1)
-    rpc_method = getattr(getattr(client.exec, obj), method)
-    
-    if isinstance(params, list):
-        return rpc_method(*params)
-    return rpc_method(params)
+def deep_process(data):
+    """Recursively process all strings in the data structure"""
+    if isinstance(data, dict):
+        return {k: restore_text(v) if isinstance(v, str) else deep_process(v) 
+                for k, v in data.items()}
+    elif isinstance(data, list):
+        return [restore_text(item) if isinstance(item, str) else deep_process(item) 
+                for item in data]
+    return data
 
 def main():
     try:
-        # Read and parse input
-        args = json.loads(sys.stdin.read())
-        client = TCMS(args["url"], args["username"], args["password"])
+        # Read and protect input
+        raw_input = sys.stdin.read()
+        protected_input = protect_text(raw_input)
+        args = json.loads(protected_input)
         
-        # Process parameters with text protection
-        processed = process_params(args.get("params", {}))
+        # Initialize client
+        client = TCMS(
+            url=args["url"],
+            username=args["username"],
+            password=args["password"]
+        )
         
-        # Execute API call
-        result = execute_kiwi_method(client, args["action"], processed)
+        # Process parameters
+        processed_params = deep_process(args.get("params", {}))
         
-        # Output result
+        # Execute method
+        obj, method = args["action"].split('.', 1)
+        rpc_method = getattr(getattr(client.exec, obj), method)
+        
+        if isinstance(processed_params, list):
+            result = rpc_method(*processed_params)
+        else:
+            result = rpc_method(processed_params)
+        
+        # Return result with protected newlines
         print(json.dumps(result, default=str))
         sys.exit(0)
 
     except Exception as e:
         error_info = {
             "error": str(e),
-            "action": args.get("action"),
             "input_sample": {
-                "text_preview": str(args.get("params", {}).get("text", ""))[:200] + "...",
-                "has_newlines": '\n' in str(args.get("params", {}).get("text", ""))
+                "action": args.get("action", ""),
+                "text_preview": str(args.get("params", {}).get("text", ""))[:100] + "...",
+                "newlines_preserved": '↲' in raw_input if 'raw_input' in locals() else False
             }
         }
         print(json.dumps(error_info), file=sys.stderr)
