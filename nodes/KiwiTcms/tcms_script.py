@@ -1,71 +1,75 @@
 import sys
 import json
+import re
 from tcms_api import TCMS
 
-def preserve_formatting(text):
-    """
-    Preserves Markdown formatting and newlines in text
-    - Maintains **bold** and *italic* markers
-    - Keeps original line breaks
-    - Handles None/empty values safely
-    """
+def normalize_newlines(text):
+    """Normalize all newline formats to \n"""
     if not isinstance(text, str):
         return text
-        
-    # Step 1: Protect formatting markers
-    protected = text.replace('**', '[[BOLD]]').replace('*', '[[ITALIC]]')
+    return re.sub(r'\r\n|\r|\n', '\n', text)
+
+def protect_formatting(text):
+    """Protect Markdown formatting during processing"""
+    if not isinstance(text, str):
+        return text
+    # Protect bold and italic with temporary markers
+    return text.replace('**', '〚BOLD〛').replace('*', '〚ITALIC〛')
+
+def restore_formatting(text):
+    """Restore original formatting markers"""
+    if not isinstance(text, str):
+        return text
+    return text.replace('〚BOLD〛', '**').replace('〚ITALIC〛', '*')
+
+def clean_text(text):
+    """Remove harmful chars while preserving formatting"""
+    if not isinstance(text, str):
+        return text
     
-    # Step 2: Protect paragraph breaks (double newlines)
-    protected = protected.replace('\n\n', '[[PARAGRAPH]]')
+    # Normalize first
+    text = normalize_newlines(text)
     
-    # Step 3: Protect single newlines
-    protected = protected.replace('\n', '[[NEWLINE]]')
+    # Protect formatting
+    text = protect_formatting(text)
     
-    # Step 4: Remove harmful control characters
-    cleaned = ''.join(
-        c for c in protected 
-        if ord(c) >= 32 or c in ['\t', '\r']
-    )
+    # Remove only truly harmful control chars (keep \t \n)
+    cleaned = []
+    for char in text:
+        if ord(char) >= 32 or char in ['\t', '\n']:
+            cleaned.append(char)
     
-    # Step 5: Restore all formatting
-    restored = cleaned.replace('[[PARAGRAPH]]', '\n\n')
-    restored = restored.replace('[[NEWLINE]]', '\n')
-    restored = restored.replace('[[BOLD]]', '**')
-    restored = restored.replace('[[ITALIC]]', '*')
-    
-    return restored
+    # Restore formatting
+    return restore_formatting(''.join(cleaned))
 
 def process_params(params):
-    """Recursively processes all parameters while preserving structure"""
+    """Deep process all parameters"""
     if isinstance(params, dict):
-        return {k: preserve_formatting(v) if isinstance(v, str) else process_params(v) 
+        return {k: clean_text(v) if isinstance(v, str) else process_params(v) 
                 for k, v in params.items()}
     elif isinstance(params, list):
-        return [preserve_formatting(item) if isinstance(item, str) else process_params(item) 
+        return [clean_text(item) if isinstance(item, str) else process_params(item) 
                 for item in params]
     return params
-
-def execute_rpc(client, action, params):
-    """Handles special RPC method cases"""
-    if action == "TestPlan.add_case":
-        if isinstance(params, dict):
-            params = [params.get("plan_id"), params.get("case_id")]
-        return client.exec.TestPlan.add_case(*map(int, params[:2]))
-    
-    object_name, method_name = action.split('.', 1)
-    method = getattr(getattr(client.exec, object_name), method_name)
-    
-    if isinstance(params, list):
-        return method(*params)
-    return method(params)
 
 def main():
     try:
         args = json.loads(sys.stdin.read())
         client = TCMS(args["url"], args["username"], args["password"])
         
-        processed_params = process_params(args.get("params", {}))
-        result = execute_rpc(client, args["action"], processed_params)
+        # Process with formatting preservation
+        processed = process_params(args.get("params", {}))
+        
+        # Execute RPC method
+        obj, method = args["action"].split('.', 1)
+        rpc_method = getattr(getattr(client.exec, obj), method)
+        
+        if isinstance(processed, list):
+            result = rpc_method(*processed)
+        elif isinstance(processed, dict):
+            result = rpc_method(processed)
+        else:
+            result = rpc_method(processed)
         
         print(json.dumps(result, default=str))
         sys.exit(0)
@@ -73,13 +77,10 @@ def main():
     except Exception as e:
         error_info = {
             "error": str(e),
-            "action": args.get("action"),
-            "input_params": {
-                "url": args.get("url"),
-                "username": "*****"  # Masked for security
-            },
-            "params_sample": {k: str(v)[:50] + "..." if isinstance(v, str) else v 
-                           for k, v in args.get("params", {}).items()}
+            "input_sample": {
+                "action": args.get("action"),
+                "text_preview": str(args.get("params", {}).get("text", ""))[:100]
+            }
         }
         print(json.dumps(error_info), file=sys.stderr)
         sys.exit(1)
