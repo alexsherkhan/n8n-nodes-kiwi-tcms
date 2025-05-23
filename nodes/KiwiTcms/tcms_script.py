@@ -1,50 +1,50 @@
 import sys
 import json
+import re
 from tcms_api import TCMS
 
-def process_text(text):
-    """Process text with newline preservation"""
+def fix_json_newlines(text):
+    """Convert escaped \\n back to real newlines"""
     if not isinstance(text, str):
         return text
-        
-    # Unescape JSON-encoded newlines
     return text.replace('\\n', '\n')
 
-def process_params(params):
-    """Deep process parameters structure"""
-    if isinstance(params, dict):
-        return {k: process_text(v) if isinstance(v, str) else process_params(v) 
-                for k, v in params.items()}
-    elif isinstance(params, list):
-        return [process_text(item) if isinstance(item, str) else process_params(item) 
-                for item in params]
-    return params
+def deep_restore_newlines(data):
+    """Recursively restore newlines in the entire JSON structure"""
+    if isinstance(data, dict):
+        return {k: fix_json_newlines(v) if isinstance(v, str) else deep_restore_newlines(v) 
+                for k, v in data.items()}
+    elif isinstance(data, list):
+        return [fix_json_newlines(item) if isinstance(item, str) else deep_restore_newlines(item) 
+                for item in data]
+    return data
 
 def main():
     try:
-        # Read and parse input
-        args = json.loads(sys.stdin.read())
+        # 1. Read JSON input (with escaped \n)
+        raw_input = sys.stdin.read()
+        args = json.loads(raw_input)
+        
+        # 2. Restore newlines in all parameters
+        processed_params = deep_restore_newlines(args.get("params", {}))
+        
+        # 3. Initialize TCMS client
         client = TCMS(
             url=args["url"],
             username=args["username"],
             password=args["password"]
         )
         
-        # Process parameters with newline restoration
-        processed = process_params(args.get("params", {}))
-        
-        # Execute API method
+        # 4. Execute the API method
         obj, method = args["action"].split('.', 1)
         rpc_method = getattr(getattr(client.exec, obj), method)
         
-        if isinstance(processed, list):
-            result = rpc_method(*processed)
-        elif isinstance(processed, dict):
-            result = rpc_method(processed)
+        if isinstance(processed_params, list):
+            result = rpc_method(*processed_params)
         else:
-            result = rpc_method(processed)
+            result = rpc_method(processed_params)
         
-        # Return result
+        # 5. Return the result
         print(json.dumps(result, default=str))
         sys.exit(0)
 
@@ -52,9 +52,8 @@ def main():
         error_info = {
             "error": str(e),
             "input_sample": {
-                "action": args.get("action"),
-                "text_preview": str(args.get("params", {}).get("text", ""))[:100],
-                "has_newlines": '\\n' in json.dumps(args.get("params", {}).get("text", ""))
+                "text": str(args.get("params", {}).get("text", ""))[:200],
+                "has_escaped_newlines": '\\n' in raw_input
             }
         }
         print(json.dumps(error_info), file=sys.stderr)
