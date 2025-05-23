@@ -1,44 +1,44 @@
 import sys
 import json
+import re
 from tcms_api import TCMS
 
-def decode_special_chars(text):
-    """Converts escaped \n's to real line breaks"""
+def restore_newlines(text):
+    """Restores line breaks from JSON-screened format"""
     if not isinstance(text, str):
         return text
-    return (text
-        .replace(r'\\n', '\n')  
-        .replace(r'\n', '\n')   
-    )
+    
+    
+    text = re.sub(r'\\{1,2}n', '\n', text)  
+    return text
 
-def deep_decode(data):
-    """Recursively processes all JSON"""
+def deep_restore(data):
+    """Recursively processes the entire data structure"""
     if isinstance(data, dict):
-        return {k: decode_special_chars(v) if isinstance(v, str) else deep_decode(v) 
+        return {k: restore_newlines(v) if isinstance(v, str) else deep_restore(v) 
                 for k, v in data.items()}
     elif isinstance(data, list):
-        return [decode_special_chars(item) if isinstance(item, str) else deep_decode(item) 
+        return [restore_newlines(item) if isinstance(item, str) else deep_restore(item) 
                 for item in data]
     return data
 
 def main():
     try:
-       
+        
         raw_input = sys.stdin.read()
         
         
         args = json.loads(raw_input)
         
         
-        processed_params = deep_decode(args.get("params", {}))
+        processed_params = deep_restore(args.get("params", {}))
         
-       
+        
         client = TCMS(
             url=args["url"],
             username=args["username"],
             password=args["password"]
         )
-        
         
         obj, method = args["action"].split('.', 1)
         rpc_method = getattr(getattr(client.exec, obj), method)
@@ -55,10 +55,10 @@ def main():
     except Exception as e:
         error_info = {
             "error": str(e),
-            "debug_info": {
-                "raw_input_sample": raw_input[:200],
-                "has_newlines": '\\n' in raw_input,
-                "params_type": type(args.get("params"))
+            "input_sample": {
+                "text": str(args.get("params", {}).get("text", ""))[:200],
+                "raw_input": raw_input[:200] if 'raw_input' in locals() else None,
+                "has_newlines": '\\n' in raw_input if 'raw_input' in locals() else False
             }
         }
         print(json.dumps(error_info), file=sys.stderr)
