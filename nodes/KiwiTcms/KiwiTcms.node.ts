@@ -137,15 +137,25 @@ export class KiwiTcms implements INodeType {
                 try {
                     
                     const cleanedParams = rawParams
-                        .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, '')
-                        .replace(/\\u0000/g, ''); 
-                    
+                        
+                        .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '')
+                        
+                        .replace(/\\n/g, '\n')  
+                        .replace(/\\r/g, '\r')  
+                        .replace(/\\t/g, '\t'); 
+
                     params = JSON.parse(cleanedParams);
                 } catch (error) {
+                    
+                    const errorPosition = parseInt(error.message.match(/position (\d+)/)?.[1] || '0');
+                    const contextStart = Math.max(0, errorPosition - 50);
+                    const contextEnd = Math.min(rawParams.length, errorPosition + 50);
+                    const errorContext = rawParams.substring(contextStart, contextEnd);
+
                     throw new NodeOperationError(
                         this.getNode(), 
                         `Failed to parse JSON parameters: ${error.message}\n` +
-                        `Input: ${rawParams.substring(0, 300)}...`
+                        `Problem area: ...${errorContext}...`
                     );
                 }
             }
