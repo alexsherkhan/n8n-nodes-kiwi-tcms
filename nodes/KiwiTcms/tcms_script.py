@@ -1,41 +1,45 @@
 import sys
 import json
-import re
 from tcms_api import TCMS
 
-def fix_json_newlines(text):
-    """Convert escaped \\n back to real newlines"""
+def decode_special_chars(text):
+    """Converts escaped \n's to real line breaks"""
     if not isinstance(text, str):
         return text
-    return text.replace('\\n', '\n')
+    return (text
+        .replace(r'\\n', '\n')  
+        .replace(r'\n', '\n')   
+    )
 
-def deep_restore_newlines(data):
-    """Recursively restore newlines in the entire JSON structure"""
+def deep_decode(data):
+    """Recursively processes all JSON"""
     if isinstance(data, dict):
-        return {k: fix_json_newlines(v) if isinstance(v, str) else deep_restore_newlines(v) 
+        return {k: decode_special_chars(v) if isinstance(v, str) else deep_decode(v) 
                 for k, v in data.items()}
     elif isinstance(data, list):
-        return [fix_json_newlines(item) if isinstance(item, str) else deep_restore_newlines(item) 
+        return [decode_special_chars(item) if isinstance(item, str) else deep_decode(item) 
                 for item in data]
     return data
 
 def main():
     try:
-        # 1. Read JSON input (with escaped \n)
+       
         raw_input = sys.stdin.read()
+        
+        
         args = json.loads(raw_input)
         
-        # 2. Restore newlines in all parameters
-        processed_params = deep_restore_newlines(args.get("params", {}))
         
-        # 3. Initialize TCMS client
+        processed_params = deep_decode(args.get("params", {}))
+        
+       
         client = TCMS(
             url=args["url"],
             username=args["username"],
             password=args["password"]
         )
         
-        # 4. Execute the API method
+        
         obj, method = args["action"].split('.', 1)
         rpc_method = getattr(getattr(client.exec, obj), method)
         
@@ -44,16 +48,17 @@ def main():
         else:
             result = rpc_method(processed_params)
         
-        # 5. Return the result
+        
         print(json.dumps(result, default=str))
         sys.exit(0)
 
     except Exception as e:
         error_info = {
             "error": str(e),
-            "input_sample": {
-                "text": str(args.get("params", {}).get("text", ""))[:200],
-                "has_escaped_newlines": '\\n' in raw_input
+            "debug_info": {
+                "raw_input_sample": raw_input[:200],
+                "has_newlines": '\\n' in raw_input,
+                "params_type": type(args.get("params"))
             }
         }
         print(json.dumps(error_info), file=sys.stderr)
