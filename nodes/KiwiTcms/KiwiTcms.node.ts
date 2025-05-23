@@ -122,58 +122,66 @@ async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
     const results: INodeExecutionData[] = [];
 
     /**
-     * Ultra-tolerant JSON parser that:
-     * - Preserves all formatting (newlines, tabs, etc.)
-     * - Handles multilingual content
-     * - Only removes truly invalid characters
+     * Specialized JSON parser for Kiwi TCMS that:
+     * - Explicitly allows newlines in content
+     * - Preserves Markdown formatting
+     * - Handles multilingual text
      */
-    const tolerantJsonParse = (jsonString: string): any => {
-        // First try vanilla parse
+    const kiwiJsonParse = (jsonString: string): any => {
+        // Pre-process to protect newlines in content areas
+        const protectedString = jsonString
+            // Protect newlines in string values
+            .replace(/"([^"\\]*(?:\\.[^"\\]*)*)"/g, (match) => 
+                match.replace(/\n/g, '\\n'))
+            // Remove truly invalid characters
+            .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
+
         try {
-            return JSON.parse(jsonString);
-        } catch (initialError) {
-            // If that fails, apply minimal cleaning
-            const cleaned = jsonString
-                // Preserve all whitespace including newlines
-                // Only remove truly invalid control chars
-                .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '')
-                // Fix common escape sequences
-                .replace(/\\'/g, "'")
-                .replace(/\\"/g, '"')
-                // Handle Windows line endings
-                .replace(/\r\n/g, '\n');
+            // Parse and then restore newlines
+            const parsed = JSON.parse(protectedString);
+            const restoreNewlines = (obj: any): any => {
+                if (typeof obj === 'string') {
+                    return obj.replace(/\\n/g, '\n');
+                }
+                if (Array.isArray(obj)) {
+                    return obj.map(restoreNewlines);
+                }
+                if (typeof obj === 'object' && obj !== null) {
+                    return Object.fromEntries(
+                        Object.entries(obj).map(([k, v]) => [k, restoreNewlines(v)])
+                    );
+                }
+                return obj;
+            };
+            return restoreNewlines(parsed);
+        } catch (error) {
+            // Enhanced error diagnostics
+            const err = error as Error;
+            const positionMatch = err.message.match(/position (\d+)/);
+            const position = positionMatch ? parseInt(positionMatch[1]) : 0;
+            
+            // Get context with 20 chars before/after
+            const context = jsonString.substring(
+                Math.max(0, position - 20),
+                Math.min(jsonString.length, position + 20)
+            );
 
-            try {
-                return JSON.parse(cleaned);
-            } catch (finalError) {
-                // Generate detailed diagnostic report
-                const err = finalError as Error;
-                const positionMatch = err.message.match(/position (\d+)/);
-                const position = positionMatch ? parseInt(positionMatch[1]) : 0;
-                
-                // Get 50 characters around the error
-                const context = jsonString.substring(
-                    Math.max(0, position - 25),
-                    Math.min(jsonString.length, position + 25)
-                );
+            // Create annotated hex dump
+            const hexDump = Array.from(context)
+                .map((c, i) => {
+                    const code = c.charCodeAt(0);
+                    return `${i === 20 ? '>>>' : ''}${code.toString(16).padStart(4, '0')}${i === 20 ? '<<<' : ''}`;
+                })
+                .join(' ');
 
-                // Create hex dump of problematic area
-                const hexDump = Array.from(context)
-                    .map((c, i) => {
-                        const code = c.charCodeAt(0);
-                        return `${i === 25 ? '>>>' : ''}${code.toString(16).padStart(4, '0')}${i === 25 ? '<<<' : ''}`;
-                    })
-                    .join(' ');
-
-                throw new Error(
-                    `JSON PARSE FAILURE:\n` +
-                    `• Error: ${err.message}\n` +
-                    `• Position: ${position}\n` +
-                    `• Problem area: "${context.replace(/\n/g, '\\n')}"\n` +
-                    `• Hex codes: ${hexDump}\n` +
-                    `• Input start: ${jsonString.substring(0, 100).replace(/\n/g, '\\n')}...`
-                );
-            }
+            throw new Error(
+                `JSON PARSE ERROR:\n` +
+                `• Message: ${err.message}\n` +
+                `• Location: Char ${position}\n` +
+                `• Context: "${context.replace(/\n/g, '\\n')}"\n` +
+                `• Hex codes: ${hexDump}\n` +
+                `• Document start: ${jsonString.substring(0, 100).replace(/\n/g, '\\n')}...`
+            );
         }
     };
 
@@ -185,10 +193,10 @@ async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
             const action = this.getNodeParameter('action', i) as string;
             const rawParams = this.getNodeParameter('params', i) as string;
 
-            // Parse with ultra-tolerant parser
+            // Parse with specialized parser
             let params = {};
             if (rawParams.trim()) {
-                params = tolerantJsonParse(rawParams);
+                params = kiwiJsonParse(rawParams);
             }
 
             // Execute Python script
@@ -218,12 +226,12 @@ async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 
                 py.on('close', (code: number) => {
                     if (code !== 0) {
-                        return reject(new Error(`Python script failed (${code}): ${errorOutput}`));
+                        return reject(new Error(`Python error ${code}: ${errorOutput}`));
                     }
                     try {
                         resolve(output ? JSON.parse(output) : {});
                     } catch (error) {
-                        reject(new Error(`Output parse error: ${(error as Error).message}`));
+                        reject(new Error(`Output parse failed: ${(error as Error).message}`));
                     }
                 });
             });
@@ -238,7 +246,7 @@ async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
         } catch (error) {
             throw new NodeOperationError(
                 this.getNode(),
-                `Item ${i} processing failed:\n${(error as Error).message}`,
+                `Processing failed for item ${i}:\n${(error as Error).message}`,
                 { itemIndex: i }
             );
         }
