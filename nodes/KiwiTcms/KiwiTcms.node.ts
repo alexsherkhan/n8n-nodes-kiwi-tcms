@@ -131,45 +131,44 @@ async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 
             
             let params = {};
-            const rawParams = this.getNodeParameter('params', i) as string;
+            let rawParams = this.getNodeParameter('params', i) as string;
             
             if (rawParams.trim()) {
                 try {
                     
-                    const cleanJsonString = (jsonString: string): string => {
+                    params = JSON.parse(rawParams);
+                } catch (initialError) {
+                    try {
                         
-                        return jsonString
+                        const position = parseInt(initialError.message.match(/position (\d+)/)?.[1] || '0');
+                        const problemChar = rawParams.charCodeAt(position);
+                        
+                        
+                        rawParams = rawParams
+                            .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, ' ')
                             
-                            .replace(/\\n/g, '\n')
-                            .replace(/\\t/g, '\t')
-                            .replace(/\\r/g, '\r')
-                            
-                            .replace(/[\x00-\x09\x0B\x0C\x0E-\x1F]/g, '');
-                    };
+                            .replace(/\r\n/g, '\n')
+                            .replace(/\r/g, '\n');
 
-                    
-                    const cleanedParams = cleanJsonString(rawParams);
-                    
-                    
-                    if (!isValidJSON(cleanedParams)) {
-                        throw new Error('Invalid JSON after cleaning');
+                        params = JSON.parse(rawParams);
+                    } catch (finalError) {
+                        
+                        const errorPosition = parseInt(finalError.message.match(/position (\d+)/)?.[1] || '0');
+                        const badChar = rawParams.charCodeAt(errorPosition);
+                        const contextStart = Math.max(0, errorPosition - 20);
+                        const contextEnd = Math.min(rawParams.length, errorPosition + 20);
+                        const context = rawParams.substring(contextStart, contextEnd);
+                        
+                        throw new NodeOperationError(
+                            this.getNode(), 
+                            `Failed to parse JSON after cleaning:\n` +
+                            `- Error: ${finalError.message}\n` +
+                            `- Position: ${errorPosition}\n` +
+                            `- Char code: ${badChar} (${String.fromCharCode(badChar)})\n` +
+                            `- Context: "${context.replace(/\n/g, '\\n')}"\n` +
+                            `- Full input (first 200 chars): "${rawParams.substring(0, 200).replace(/\n/g, '\\n')}"`
+                        );
                     }
-                    
-                    params = JSON.parse(cleanedParams);
-                } catch (error) {
-                    
-                    const errorPosition = parseInt(error.message.match(/position (\d+)/)?.[1] || '0');
-                    const badChar = rawParams.charCodeAt(errorPosition);
-                    const context = rawParams.substring(Math.max(0, errorPosition - 20), errorPosition + 20);
-                    
-                    throw new NodeOperationError(
-                        this.getNode(), 
-                        `JSON parsing failed:\n` +
-                        `- Error: ${error.message}\n` +
-                        `- Position: ${errorPosition}\n` +
-                        `- Problem character: ${badChar} (0x${badChar.toString(16)})\n` +
-                        `- Context: "...${context.replace(/\n/g, '\\n')}..."`
-                    );
                 }
             }
 
@@ -184,6 +183,7 @@ async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 
             const input = JSON.stringify(inputData);
 
+            
             const result = await new Promise<any>((resolve, reject) => {
                 const scriptPath = path.join(__dirname, 'tcms_script.py');
                 const py = spawn('/usr/bin/python3', [scriptPath]);
@@ -208,14 +208,14 @@ async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
                     }
 
                     try {
-                        const parsedOutput = output ? JSON.parse(output) : {};
-                        resolve(parsedOutput);
+                        resolve(JSON.parse(output));
                     } catch (error) {
-                        reject(new Error(`Failed to parse Python script output: ${error.message}`));
+                        reject(new Error(`Failed to parse script output: ${error.message}`));
                     }
                 });
             });
 
+            // Обработка результата
             if (Array.isArray(result)) {
                 results.push(...result.map(item => ({ json: item })));
             } else {
@@ -232,12 +232,4 @@ async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 
     return [results];
 }
-}
-function isValidJSON(str: string): boolean {
-    try {
-        JSON.parse(str);
-        return true;
-    } catch {
-        return false;
-    }
 }
