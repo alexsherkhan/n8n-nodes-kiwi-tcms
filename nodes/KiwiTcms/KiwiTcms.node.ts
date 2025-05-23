@@ -140,36 +140,35 @@ async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
                         
                         return jsonString
                             
-                            .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '')
-                            
-                            .replace(/\r\n/g, '\n')  
-                            .replace(/\r/g, '\n')    
-                            
                             .replace(/\\n/g, '\n')
                             .replace(/\\t/g, '\t')
-                            .replace(/\\r/g, '\r');
+                            .replace(/\\r/g, '\r')
+                            
+                            .replace(/[\x00-\x09\x0B\x0C\x0E-\x1F]/g, '');
                     };
 
+                    
                     const cleanedParams = cleanJsonString(rawParams);
+                    
+                    
+                    if (!isValidJSON(cleanedParams)) {
+                        throw new Error('Invalid JSON after cleaning');
+                    }
+                    
                     params = JSON.parse(cleanedParams);
                 } catch (error) {
                     
                     const errorPosition = parseInt(error.message.match(/position (\d+)/)?.[1] || '0');
-                    const contextStart = Math.max(0, errorPosition - 20);
-                    const contextEnd = Math.min(rawParams.length, errorPosition + 20);
-                    const errorContext = rawParams.substring(contextStart, contextEnd);
+                    const badChar = rawParams.charCodeAt(errorPosition);
+                    const context = rawParams.substring(Math.max(0, errorPosition - 20), errorPosition + 20);
                     
-                    
-                    const hexContext = Array.from(errorContext)
-                        .map(c => c.charCodeAt(0).toString(16).padStart(2, '0'))
-                        .join(' ');
-
                     throw new NodeOperationError(
                         this.getNode(), 
-                        `JSON parse error: ${error.message}\n` +
-                        `Problem area: '${errorContext}'\n` +
-                        `Hex codes: [${hexContext}]\n` +
-                        `Full input length: ${rawParams.length} chars`
+                        `JSON parsing failed:\n` +
+                        `- Error: ${error.message}\n` +
+                        `- Position: ${errorPosition}\n` +
+                        `- Problem character: ${badChar} (0x${badChar.toString(16)})\n` +
+                        `- Context: "...${context.replace(/\n/g, '\\n')}..."`
                     );
                 }
             }
@@ -185,7 +184,6 @@ async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 
             const input = JSON.stringify(inputData);
 
-            
             const result = await new Promise<any>((resolve, reject) => {
                 const scriptPath = path.join(__dirname, 'tcms_script.py');
                 const py = spawn('/usr/bin/python3', [scriptPath]);
@@ -213,12 +211,11 @@ async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
                         const parsedOutput = output ? JSON.parse(output) : {};
                         resolve(parsedOutput);
                     } catch (error) {
-                        reject(new Error(`Failed to parse Python script output: ${error.message}\nOutput: ${output.substring(0, 300)}...`));
+                        reject(new Error(`Failed to parse Python script output: ${error.message}`));
                     }
                 });
             });
 
-            
             if (Array.isArray(result)) {
                 results.push(...result.map(item => ({ json: item })));
             } else {
@@ -235,4 +232,12 @@ async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 
     return [results];
 }
+}
+function isValidJSON(str: string): boolean {
+    try {
+        JSON.parse(str);
+        return true;
+    } catch {
+        return false;
+    }
 }
