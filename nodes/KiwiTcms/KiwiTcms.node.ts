@@ -121,73 +121,66 @@ async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
     const items = this.getInputData();
     const results: INodeExecutionData[] = [];
 
+    // Helper function to safely clean JSON string
+    const cleanJsonString = (jsonString: string): string => {
+        // First try parsing original string
+        try {
+            JSON.parse(jsonString);
+            return jsonString;
+        } catch {
+            // If parsing fails, clean only invalid control chars
+            return jsonString.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
+        }
+    };
+
     for (let i = 0; i < items.length; i++) {
         try {
+            // Get credentials and parameters
             const credentials = await this.getCredentials('kiwiTcmsApi');
-            const url = credentials.url;
-            const username = credentials.username;
-            const password = credentials.password;
+            const { url, username, password } = credentials;
             const action = this.getNodeParameter('action', i) as string;
+            const rawParams = this.getNodeParameter('params', i) as string;
 
-            
+            // Parse parameters with safe cleaning
             let params = {};
-            let rawParams = this.getNodeParameter('params', i) as string;
-            
             if (rawParams.trim()) {
                 try {
+                    const cleanedParams = cleanJsonString(rawParams);
+                    params = JSON.parse(cleanedParams);
+                } catch (error) {
+                    const err = error as Error;
+                    const positionMatch = err.message.match(/position (\d+)/);
+                    const position = positionMatch ? parseInt(positionMatch[1]) : 0;
                     
-                    params = JSON.parse(rawParams);
-                } catch (initialError) {
-                    try {
-                        
-                        const position = parseInt(initialError.message.match(/position (\d+)/)?.[1] || '0');
-                        const problemChar = rawParams.charCodeAt(position);
-                        
-                        
-                        rawParams = rawParams
-                            .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, ' ')
-                            
-                            .replace(/\r\n/g, '\n')
-                            .replace(/\r/g, '\n');
+                    const badChar = rawParams.charCodeAt(position);
+                    const context = rawParams.slice(
+                        Math.max(0, position - 20),
+                        Math.min(rawParams.length, position + 20)
+                    );
 
-                        params = JSON.parse(rawParams);
-                    } catch (finalError) {
-                        
-                        const errorPosition = parseInt(finalError.message.match(/position (\d+)/)?.[1] || '0');
-                        const badChar = rawParams.charCodeAt(errorPosition);
-                        const contextStart = Math.max(0, errorPosition - 20);
-                        const contextEnd = Math.min(rawParams.length, errorPosition + 20);
-                        const context = rawParams.substring(contextStart, contextEnd);
-                        
-                        throw new NodeOperationError(
-                            this.getNode(), 
-                            `Failed to parse JSON after cleaning:\n` +
-                            `- Error: ${finalError.message}\n` +
-                            `- Position: ${errorPosition}\n` +
-                            `- Char code: ${badChar} (${String.fromCharCode(badChar)})\n` +
-                            `- Context: "${context.replace(/\n/g, '\\n')}"\n` +
-                            `- Full input (first 200 chars): "${rawParams.substring(0, 200).replace(/\n/g, '\\n')}"`
-                        );
-                    }
+                    throw new NodeOperationError(
+                        this.getNode(),
+                        `JSON parse failed:\n` +
+                        `• Error: ${err.message}\n` +
+                        `• Position: ${position}\n` +
+                        `• Char: ${String.fromCharCode(badChar)} (U+${badChar.toString(16).padStart(4, '0')})\n` +
+                        `• Context: ${JSON.stringify(context)}`
+                    );
                 }
             }
 
-            
-            const inputData = {
-                url,
-                username,
-                password,
-                action,
-                params
-            };
-
-            const input = JSON.stringify(inputData);
-
-            
+            // Execute Python script directly
             const result = await new Promise<any>((resolve, reject) => {
                 const scriptPath = path.join(__dirname, 'tcms_script.py');
-                const py = spawn('/usr/bin/python3', [scriptPath]);
+                const input = JSON.stringify({
+                    url,
+                    username,
+                    password,
+                    action,
+                    params
+                });
 
+                const py = spawn('/usr/bin/python3', [scriptPath]);
                 let output = '';
                 let errorOutput = '';
 
@@ -204,18 +197,17 @@ async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 
                 py.on('close', (code: number) => {
                     if (code !== 0) {
-                        return reject(new Error(`Python script exited with code ${code}: ${errorOutput}`));
+                        return reject(new Error(`Python error (${code}): ${errorOutput}`));
                     }
-
                     try {
-                        resolve(JSON.parse(output));
+                        resolve(output ? JSON.parse(output) : {});
                     } catch (error) {
-                        reject(new Error(`Failed to parse script output: ${error.message}`));
+                        reject(new Error(`Output parse failed: ${(error as Error).message}`));
                     }
                 });
             });
 
-            // Обработка результата
+            // Process results
             if (Array.isArray(result)) {
                 results.push(...result.map(item => ({ json: item })));
             } else {
