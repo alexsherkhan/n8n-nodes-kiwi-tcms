@@ -122,50 +122,56 @@ async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
     const results: INodeExecutionData[] = [];
 
     /**
-     * Ultra-permissive JSON parser that only removes:
-     * - Invalid Unicode surrogate pairs
-     * - Isolated control chars (except \t, \n, \r)
-     * @param jsonString Input JSON string
-     * @returns Parsed JSON object
+     * Ultra-tolerant JSON parser that:
+     * - Preserves all formatting (newlines, tabs, etc.)
+     * - Handles multilingual content
+     * - Only removes truly invalid characters
      */
-    const ultraParseJson = (jsonString: string): any => {
-        // First try standard parse
+    const tolerantJsonParse = (jsonString: string): any => {
+        // First try vanilla parse
         try {
             return JSON.parse(jsonString);
         } catch (initialError) {
-            // If standard parse fails, use custom parser
-            try {
-                // Remove ONLY problematic characters:
-                // 1. Invalid Unicode surrogates
-                // 2. Isolated control chars (except \t, \n, \r)
-                const cleaned = jsonString
-                    .replace(/[\uD800-\uDFFF]/g, '') // Remove broken Unicode surrogates
-                    .replace(/(^|[^\\])\\([^u0-9tnrbf'"\\])/g, '$1\\\\$2') // Fix invalid escapes
-                    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, ''); // Remove bad controls (keep \t, \n, \r)
+            // If that fails, apply minimal cleaning
+            const cleaned = jsonString
+                // Preserve all whitespace including newlines
+                // Only remove truly invalid control chars
+                .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '')
+                // Fix common escape sequences
+                .replace(/\\'/g, "'")
+                .replace(/\\"/g, '"')
+                // Handle Windows line endings
+                .replace(/\r\n/g, '\n');
 
+            try {
                 return JSON.parse(cleaned);
             } catch (finalError) {
-                // Generate super-detailed error report
+                // Generate detailed diagnostic report
                 const err = finalError as Error;
                 const positionMatch = err.message.match(/position (\d+)/);
                 const position = positionMatch ? parseInt(positionMatch[1]) : 0;
                 
-                // Show hex dump around error position
-                const contextStart = Math.max(0, position - 20);
-                const contextEnd = Math.min(jsonString.length, position + 20);
-                const context = jsonString.slice(contextStart, contextEnd);
-                
+                // Get 50 characters around the error
+                const context = jsonString.substring(
+                    Math.max(0, position - 25),
+                    Math.min(jsonString.length, position + 25)
+                );
+
+                // Create hex dump of problematic area
                 const hexDump = Array.from(context)
-                    .map(c => c.charCodeAt(0).toString(16).padStart(4, '0'))
+                    .map((c, i) => {
+                        const code = c.charCodeAt(0);
+                        return `${i === 25 ? '>>>' : ''}${code.toString(16).padStart(4, '0')}${i === 25 ? '<<<' : ''}`;
+                    })
                     .join(' ');
 
                 throw new Error(
-                    `JSON parsing failed:\n` +
+                    `JSON PARSE FAILURE:\n` +
                     `• Error: ${err.message}\n` +
-                    `• Position: ${position} (line ${jsonString.substring(0, position).split('\n').length})\n` +
-                    `• Hex context: ${hexDump}\n` +
-                    `• Text context: ${JSON.stringify(context)}\n` +
-                    `• Full input start:\n${jsonString.substring(0, 200)}`
+                    `• Position: ${position}\n` +
+                    `• Problem area: "${context.replace(/\n/g, '\\n')}"\n` +
+                    `• Hex codes: ${hexDump}\n` +
+                    `• Input start: ${jsonString.substring(0, 100).replace(/\n/g, '\\n')}...`
                 );
             }
         }
@@ -173,19 +179,19 @@ async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 
     for (let i = 0; i < items.length; i++) {
         try {
-            // Get parameters
+            // Get node parameters
             const credentials = await this.getCredentials('kiwiTcmsApi');
             const { url, username, password } = credentials;
             const action = this.getNodeParameter('action', i) as string;
             const rawParams = this.getNodeParameter('params', i) as string;
 
-            // Parse with ultra-permissive parser
+            // Parse with ultra-tolerant parser
             let params = {};
             if (rawParams.trim()) {
-                params = ultraParseJson(rawParams);
+                params = tolerantJsonParse(rawParams);
             }
 
-            // Execute Python script (unchanged from previous version)
+            // Execute Python script
             const result = await new Promise<any>((resolve, reject) => {
                 const scriptPath = path.join(__dirname, 'tcms_script.py');
                 const py = spawn('/usr/bin/python3', [scriptPath]);
@@ -202,15 +208,22 @@ async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
                 }));
                 py.stdin.end();
 
-                py.stdout.on('data', (data: Buffer) => output += data.toString());
-                py.stderr.on('data', (data: Buffer) => errorOutput += data.toString());
+                py.stdout.on('data', (data: Buffer) => {
+                    output += data.toString();
+                });
+
+                py.stderr.on('data', (data: Buffer) => {
+                    errorOutput += data.toString();
+                });
 
                 py.on('close', (code: number) => {
-                    if (code !== 0) return reject(new Error(`Python error ${code}: ${errorOutput}`));
+                    if (code !== 0) {
+                        return reject(new Error(`Python script failed (${code}): ${errorOutput}`));
+                    }
                     try {
                         resolve(output ? JSON.parse(output) : {});
                     } catch (error) {
-                        reject(new Error(`Output parse failed: ${(error as Error).message}`));
+                        reject(new Error(`Output parse error: ${(error as Error).message}`));
                     }
                 });
             });
@@ -225,7 +238,7 @@ async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
         } catch (error) {
             throw new NodeOperationError(
                 this.getNode(),
-                `Processing failed on item ${i}:\n${(error as Error).message}`,
+                `Item ${i} processing failed:\n${(error as Error).message}`,
                 { itemIndex: i }
             );
         }
