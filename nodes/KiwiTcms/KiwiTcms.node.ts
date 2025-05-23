@@ -117,7 +117,7 @@ export class KiwiTcms implements INodeType {
         ],
     };
 
-   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
+async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
     const items = this.getInputData();
     const results: INodeExecutionData[] = [];
 
@@ -136,26 +136,40 @@ export class KiwiTcms implements INodeType {
             if (rawParams.trim()) {
                 try {
                     
-                    const cleanedParams = rawParams
+                    const cleanJsonString = (jsonString: string): string => {
                         
-                        .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '')
-                        
-                        .replace(/\\n/g, '\n')  
-                        .replace(/\\r/g, '\r')  
-                        .replace(/\\t/g, '\t'); 
+                        return jsonString
+                            
+                            .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '')
+                            
+                            .replace(/\r\n/g, '\n')  
+                            .replace(/\r/g, '\n')    
+                            
+                            .replace(/\\n/g, '\n')
+                            .replace(/\\t/g, '\t')
+                            .replace(/\\r/g, '\r');
+                    };
 
+                    const cleanedParams = cleanJsonString(rawParams);
                     params = JSON.parse(cleanedParams);
                 } catch (error) {
                     
                     const errorPosition = parseInt(error.message.match(/position (\d+)/)?.[1] || '0');
-                    const contextStart = Math.max(0, errorPosition - 50);
-                    const contextEnd = Math.min(rawParams.length, errorPosition + 50);
+                    const contextStart = Math.max(0, errorPosition - 20);
+                    const contextEnd = Math.min(rawParams.length, errorPosition + 20);
                     const errorContext = rawParams.substring(contextStart, contextEnd);
+                    
+                    
+                    const hexContext = Array.from(errorContext)
+                        .map(c => c.charCodeAt(0).toString(16).padStart(2, '0'))
+                        .join(' ');
 
                     throw new NodeOperationError(
                         this.getNode(), 
-                        `Failed to parse JSON parameters: ${error.message}\n` +
-                        `Problem area: ...${errorContext}...`
+                        `JSON parse error: ${error.message}\n` +
+                        `Problem area: '${errorContext}'\n` +
+                        `Hex codes: [${hexContext}]\n` +
+                        `Full input length: ${rawParams.length} chars`
                     );
                 }
             }
