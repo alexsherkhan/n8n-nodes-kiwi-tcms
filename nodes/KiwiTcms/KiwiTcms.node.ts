@@ -117,89 +117,98 @@ export class KiwiTcms implements INodeType {
         ],
     };
 
-    async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
-        const items = this.getInputData();
-        const results: INodeExecutionData[] = [];
+   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
+    const items = this.getInputData();
+    const results: INodeExecutionData[] = [];
 
-        for (let i = 0; i < items.length; i++) {
-            try {
-                const credentials = await this.getCredentials('kiwiTcmsApi');
-                const url = credentials.url;
-                const username = credentials.username;
-                const password = credentials.password;
-                const action = this.getNodeParameter('action', i) as string;
+    for (let i = 0; i < items.length; i++) {
+        try {
+            const credentials = await this.getCredentials('kiwiTcmsApi');
+            const url = credentials.url;
+            const username = credentials.username;
+            const password = credentials.password;
+            const action = this.getNodeParameter('action', i) as string;
 
-                
-                let params = {};
-                const rawParams = this.getNodeParameter('params', i) as string;
-                
-                if (rawParams.trim()) {
-                    try {
-                        params = JSON.parse(rawParams);
-                    } catch (error) {
-                        throw new NodeOperationError(this.getNode(), `Failed to parse JSON parameters: ${error.message}`);
-                    }
+            
+            let params = {};
+            const rawParams = this.getNodeParameter('params', i) as string;
+            
+            if (rawParams.trim()) {
+                try {
+                    
+                    const cleanedParams = rawParams
+                        .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, '')
+                        .replace(/\\u0000/g, ''); 
+                    
+                    params = JSON.parse(cleanedParams);
+                } catch (error) {
+                    throw new NodeOperationError(
+                        this.getNode(), 
+                        `Failed to parse JSON parameters: ${error.message}\n` +
+                        `Input: ${rawParams.substring(0, 300)}...`
+                    );
                 }
+            }
 
-                
-                const inputData = {
-                    url,
-                    username,
-                    password,
-                    action,
-                    params
-                };
+            
+            const inputData = {
+                url,
+                username,
+                password,
+                action,
+                params
+            };
 
-                const input = JSON.stringify(inputData);
+            const input = JSON.stringify(inputData);
 
-                
-                const result = await new Promise<any>((resolve, reject) => {
-                    const scriptPath = path.join(__dirname, 'tcms_script.py');
-                    const py = spawn('/usr/bin/python3', [scriptPath]);
+            
+            const result = await new Promise<any>((resolve, reject) => {
+                const scriptPath = path.join(__dirname, 'tcms_script.py');
+                const py = spawn('/usr/bin/python3', [scriptPath]);
 
-                    let output = '';
-                    let errorOutput = '';
+                let output = '';
+                let errorOutput = '';
 
-                    py.stdin.write(input);
-                    py.stdin.end();
+                py.stdin.write(input);
+                py.stdin.end();
 
-                    py.stdout.on('data', (data: Buffer) => {
-                        output += data.toString();
-                    });
-
-                    py.stderr.on('data', (data: Buffer) => {
-                        errorOutput += data.toString();
-                    });
-
-                    py.on('close', (code: number) => {
-                        if (code !== 0) {
-                            return reject(new Error(`Python script exited with code ${code}: ${errorOutput}`));
-                        }
-
-                        try {
-                            const parsedOutput = output ? JSON.parse(output) : {};
-                            resolve(parsedOutput);
-                        } catch (error) {
-                            reject(new Error(`Failed to parse Python script output: ${error.message}\nOutput: ${output}`));
-                        }
-                    });
+                py.stdout.on('data', (data: Buffer) => {
+                    output += data.toString();
                 });
 
-                
-                if (Array.isArray(result)) {
-                    results.push(...result.map(item => ({ json: item })));
-                } else {
-                    results.push({ json: result });
-                }
+                py.stderr.on('data', (data: Buffer) => {
+                    errorOutput += data.toString();
+                });
 
-            } catch (error) {
-                if (error instanceof Error) {
-                    throw new NodeOperationError(this.getNode(), error);
-                }
-                throw new NodeOperationError(this.getNode(), 'Unknown error occurred');
+                py.on('close', (code: number) => {
+                    if (code !== 0) {
+                        return reject(new Error(`Python script exited with code ${code}: ${errorOutput}`));
+                    }
+
+                    try {
+                        const parsedOutput = output ? JSON.parse(output) : {};
+                        resolve(parsedOutput);
+                    } catch (error) {
+                        reject(new Error(`Failed to parse Python script output: ${error.message}\nOutput: ${output.substring(0, 300)}...`));
+                    }
+                });
+            });
+
+            
+            if (Array.isArray(result)) {
+                results.push(...result.map(item => ({ json: item })));
+            } else {
+                results.push({ json: result });
             }
-        }
 
-        return [results];
+        } catch (error) {
+            if (error instanceof Error) {
+                throw new NodeOperationError(this.getNode(), error);
+            }
+            throw new NodeOperationError(this.getNode(), 'Unknown error occurred');
+        }
     }
+
+    return [results];
+}
 }
