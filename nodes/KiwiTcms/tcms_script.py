@@ -1,49 +1,54 @@
 import sys
 import json
+import re
 from tcms_api import TCMS
 
-def preserve_newlines(text):
-    """Forcibly saves all line breaks"""
+def restore_newlines(text):
+    """Restores line breaks from JSON"""
     if not isinstance(text, str):
         return text
     
-    return (text.replace(r'\n', '\n')
-             .replace(r'\\n', '\n')
-             .replace('⏎', '\n'))  
+    
+    text = re.sub(r'\\{1,2}n', '\n', text)  
+    return text
 
-def deep_process(data):
-    """Deep processing of all strings in the structure"""
+def deep_restore(data):
+    """Recursively processes the entire data structure"""
     if isinstance(data, dict):
-        return {k: preserve_newlines(v) if isinstance(v, str) else deep_process(v) 
+        return {k: restore_newlines(v) if isinstance(v, str) else deep_restore(v) 
                 for k, v in data.items()}
     elif isinstance(data, list):
-        return [preserve_newlines(item) if isinstance(item, str) else deep_process(item) 
+        return [restore_newlines(item) if isinstance(item, str) else deep_restore(item) 
                 for item in data]
     return data
 
 def main():
     try:
         
-        raw_data = sys.stdin.read()
-        print(f"DEBUG Raw input: {raw_data[:500]}", file=sys.stderr) 
+        raw_input = sys.stdin.read()
+        print(f"DEBUG RAW INPUT: {raw_input}", file=sys.stderr)  
         
         
-        args = json.loads(raw_data)
+        args = json.loads(raw_input)
         
         
-        processed = deep_process(args.get("params", {}))
+        processed_params = deep_restore(args.get("params", {}))
         
         
-        client = TCMS(args["url"], args["username"], args["password"])
+        client = TCMS(
+            url=args["url"],
+            username=args["username"],
+            password=args["password"]
+        )
         
         
         obj, method = args["action"].split('.', 1)
         rpc_method = getattr(getattr(client.exec, obj), method)
         
-        if isinstance(processed, list):
-            result = rpc_method(*processed)
+        if isinstance(processed_params, list):
+            result = rpc_method(*processed_params)
         else:
-            result = rpc_method(processed)
+            result = rpc_method(processed_params)
         
         
         print(json.dumps(result, default=str))
@@ -51,8 +56,8 @@ def main():
     except Exception as e:
         error_info = {
             "error": str(e),
-            "input_sample": raw_data[:500] if 'raw_data' in locals() else None,
-            "python_version": sys.version
+            "input_sample": raw_input[:500],
+            "has_newlines": '\\n' in raw_input
         }
         print(json.dumps(error_info), file=sys.stderr)
         sys.exit(1)
