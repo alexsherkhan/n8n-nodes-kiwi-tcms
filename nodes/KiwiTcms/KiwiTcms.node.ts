@@ -122,55 +122,50 @@ async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
     const results: INodeExecutionData[] = [];
 
     /**
-     * Safely parses JSON while preserving all formatting
+     * Ultra-permissive JSON parser that only removes:
+     * - Invalid Unicode surrogate pairs
+     * - Isolated control chars (except \t, \n, \r)
      * @param jsonString Input JSON string
      * @returns Parsed JSON object
-     * @throws Error with detailed diagnostics if parsing fails
      */
-    const safeJsonParse = (jsonString: string): any => {
-        // First attempt - try parsing directly
+    const ultraParseJson = (jsonString: string): any => {
+        // First try standard parse
         try {
             return JSON.parse(jsonString);
         } catch (initialError) {
-            // Second attempt - minimal cleaning if first fails
+            // If standard parse fails, use custom parser
             try {
-                // Only remove truly invalid control characters (excluding \t, \n, \r)
-                const cleaned = jsonString.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
+                // Remove ONLY problematic characters:
+                // 1. Invalid Unicode surrogates
+                // 2. Isolated control chars (except \t, \n, \r)
+                const cleaned = jsonString
+                    .replace(/[\uD800-\uDFFF]/g, '') // Remove broken Unicode surrogates
+                    .replace(/(^|[^\\])\\([^u0-9tnrbf'"\\])/g, '$1\\\\$2') // Fix invalid escapes
+                    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, ''); // Remove bad controls (keep \t, \n, \r)
+
                 return JSON.parse(cleaned);
             } catch (finalError) {
-                // Generate detailed error report
+                // Generate super-detailed error report
                 const err = finalError as Error;
                 const positionMatch = err.message.match(/position (\d+)/);
                 const position = positionMatch ? parseInt(positionMatch[1]) : 0;
                 
-                // Get character information
-                const badChar = jsonString.charCodeAt(position);
-                const contextStart = Math.max(0, position - 30);
-                const contextEnd = Math.min(jsonString.length, position + 30);
+                // Show hex dump around error position
+                const contextStart = Math.max(0, position - 20);
+                const contextEnd = Math.min(jsonString.length, position + 20);
                 const context = jsonString.slice(contextStart, contextEnd);
-
-                // Prepare error details
-                const errorDetails = {
-                    message: err.message,
-                    position,
-                    character: {
-                        code: badChar,
-                        hex: `U+${badChar.toString(16).padStart(4, '0')}`,
-                        representation: badChar >= 32 ? String.fromCharCode(badChar) : '[control character]'
-                    },
-                    context,
-                    inputSample: jsonString.length > 100 
-                        ? `${jsonString.substring(0, 50)}...${jsonString.substring(jsonString.length - 50)}` 
-                        : jsonString
-                };
+                
+                const hexDump = Array.from(context)
+                    .map(c => c.charCodeAt(0).toString(16).padStart(4, '0'))
+                    .join(' ');
 
                 throw new Error(
-                    `JSON parsing failed after cleaning:\n` +
-                    `• Error: ${errorDetails.message}\n` +
-                    `• Position: ${errorDetails.position}\n` +
-                    `• Character: ${errorDetails.character.representation} (${errorDetails.character.hex})\n` +
-                    `• Context: "${errorDetails.context.replace(/\n/g, '\\n')}"\n` +
-                    `• Input (abbreviated): "${errorDetails.inputSample.replace(/\n/g, '\\n')}"`
+                    `JSON parsing failed:\n` +
+                    `• Error: ${err.message}\n` +
+                    `• Position: ${position} (line ${jsonString.substring(0, position).split('\n').length})\n` +
+                    `• Hex context: ${hexDump}\n` +
+                    `• Text context: ${JSON.stringify(context)}\n` +
+                    `• Full input start:\n${jsonString.substring(0, 200)}`
                 );
             }
         }
@@ -178,93 +173,61 @@ async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 
     for (let i = 0; i < items.length; i++) {
         try {
-            // Get node parameters
+            // Get parameters
             const credentials = await this.getCredentials('kiwiTcmsApi');
             const { url, username, password } = credentials;
             const action = this.getNodeParameter('action', i) as string;
             const rawParams = this.getNodeParameter('params', i) as string;
 
-            // Validate and parse parameters
-            let params: any = {};
+            // Parse with ultra-permissive parser
+            let params = {};
             if (rawParams.trim()) {
-                try {
-                    params = safeJsonParse(rawParams);
-                } catch (parseError) {
-                    throw new NodeOperationError(
-                        this.getNode(),
-                        `Failed to parse input parameters:\n${(parseError as Error).message}`,
-                        { itemIndex: i }
-                    );
-                }
+                params = ultraParseJson(rawParams);
             }
 
-            // Prepare Python script input
-            const inputData = {
-                url,
-                username,
-                password,
-                action,
-                params
-            };
+            // Execute Python script (unchanged from previous version)
+            const result = await new Promise<any>((resolve, reject) => {
+                const scriptPath = path.join(__dirname, 'tcms_script.py');
+                const py = spawn('/usr/bin/python3', [scriptPath]);
+                
+                let output = '';
+                let errorOutput = '';
 
-            // Execute Python script with error handling
-            let result: any;
-            try {
-                result = await new Promise<any>((resolve, reject) => {
-                    const scriptPath = path.join(__dirname, 'tcms_script.py');
-                    const py = spawn('/usr/bin/python3', [scriptPath]);
-                    
-                    let output = '';
-                    let errorOutput = '';
+                py.stdin.write(JSON.stringify({
+                    url,
+                    username,
+                    password,
+                    action,
+                    params
+                }));
+                py.stdin.end();
 
-                    py.stdin.write(JSON.stringify(inputData));
-                    py.stdin.end();
+                py.stdout.on('data', (data: Buffer) => output += data.toString());
+                py.stderr.on('data', (data: Buffer) => errorOutput += data.toString());
 
-                    py.stdout.on('data', (data: Buffer) => {
-                        output += data.toString();
-                    });
-
-                    py.stderr.on('data', (data: Buffer) => {
-                        errorOutput += data.toString();
-                    });
-
-                    py.on('close', (code: number) => {
-                        if (code !== 0) {
-                            return reject(new Error(`Python script exited with code ${code}: ${errorOutput}`));
-                        }
-                        try {
-                            resolve(output ? JSON.parse(output) : {});
-                        } catch (parseError) {
-                            reject(new Error(`Failed to parse script output: ${(parseError as Error).message}`));
-                        }
-                    });
+                py.on('close', (code: number) => {
+                    if (code !== 0) return reject(new Error(`Python error ${code}: ${errorOutput}`));
+                    try {
+                        resolve(output ? JSON.parse(output) : {});
+                    } catch (error) {
+                        reject(new Error(`Output parse failed: ${(error as Error).message}`));
+                    }
                 });
-            } catch (executionError) {
-                throw new NodeOperationError(
-                    this.getNode(),
-                    `TCMS script execution failed:\n${(executionError as Error).message}`,
-                    { itemIndex: i }
-                );
-            }
+            });
 
             // Format results
             if (Array.isArray(result)) {
                 results.push(...result.map(item => ({ json: item })));
-            } else if (result !== null && typeof result === 'object') {
-                results.push({ json: result });
             } else {
-                throw new NodeOperationError(
-                    this.getNode(),
-                    `Unexpected result format from TCMS script: ${typeof result}`,
-                    { itemIndex: i }
-                );
+                results.push({ json: result });
             }
 
         } catch (error) {
-            if (error instanceof Error) {
-                throw new NodeOperationError(this.getNode(), error.message, { itemIndex: i });
-            }
-            throw new NodeOperationError(this.getNode(), 'Unknown processing error', { itemIndex: i });
+            throw new NodeOperationError(
+                this.getNode(),
+                `Processing failed on item ${i}:\n${(error as Error).message}`,
+                { itemIndex: i }
+            );
         }
     }
 
