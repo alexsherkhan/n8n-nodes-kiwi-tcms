@@ -119,7 +119,7 @@ export class KiwiTcms implements INodeType {
                     }
                 },
                 default: 0,
-                description: 'ID записи для фильтрации',
+                description: 'ID case',
             },
             {
                 displayName: 'Parameters',
@@ -199,73 +199,78 @@ async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
         }
     };
 
-    for (let i = 0; i < items.length; i++) {
-        try {
-            // Get node parameters
-            const credentials = await this.getCredentials('kiwiTcmsApi');
-            const { url, username, password } = credentials;
-            const action = this.getNodeParameter('action', i) as string;
-            const rawParams = this.getNodeParameter('params', i) as string;
+        for (let i = 0; i < items.length; i++) {
+            try {
+                const credentials = await this.getCredentials('kiwiTcmsApi');
+                const { url, username, password } = credentials;
+                const action = this.getNodeParameter('action', i) as string;
+                const rawParams = this.getNodeParameter('params', i) as string;
 
-            // Parse with specialized parser
-            let params = {};
-            if (rawParams.trim()) {
-                params = kiwiJsonParse(rawParams);
+                // Parse with specialized parser
+                let params = {};
+                if (rawParams.trim()) {
+                    params = kiwiJsonParse(rawParams);
+                }
+
+                // add pk for TestCase.filter
+                if (action === 'TestCase.filter') {
+                    const pk = this.getNodeParameter('pk', i) as number;
+                    params = { ...params, pk };
+                }
+
+                // Execute Python script
+                const result = await new Promise<any>((resolve, reject) => {
+                    const scriptPath = path.join(__dirname, 'tcms_script.py');
+                    const py = spawn('/usr/bin/python3', [scriptPath]);
+                    
+                    let output = '';
+                    let errorOutput = '';
+
+                    py.stdin.write(JSON.stringify({
+                        url,
+                        username,
+                        password,
+                        action,
+                        params
+                    }));
+                    py.stdin.end();
+
+                    py.stdout.on('data', (data: Buffer) => {
+                        output += data.toString();
+                    });
+
+                    py.stderr.on('data', (data: Buffer) => {
+                        errorOutput += data.toString();
+                    });
+
+                    py.on('close', (code: number) => {
+                        if (code !== 0) {
+                            return reject(new Error(`Python error ${code}: ${errorOutput}`));
+                        }
+                        try {
+                            resolve(output ? JSON.parse(output) : {});
+                        } catch (error) {
+                            reject(new Error(`Output parse failed: ${(error as Error).message}`));
+                        }
+                    });
+                });
+
+                // Format results
+                if (Array.isArray(result)) {
+                    results.push(...result.map(item => ({ json: item })));
+                } else {
+                    results.push({ json: result });
+                }
+
+            } catch (error) {
+                throw new NodeOperationError(
+                    this.getNode(),
+                    `Processing failed for item ${i}:\n${(error as Error).message}`,
+                    { itemIndex: i }
+                );
             }
-
-            // Execute Python script
-            const result = await new Promise<any>((resolve, reject) => {
-                const scriptPath = path.join(__dirname, 'tcms_script.py');
-                const py = spawn('/usr/bin/python3', [scriptPath]);
-                
-                let output = '';
-                let errorOutput = '';
-
-                py.stdin.write(JSON.stringify({
-                    url,
-                    username,
-                    password,
-                    action,
-                    params
-                }));
-                py.stdin.end();
-
-                py.stdout.on('data', (data: Buffer) => {
-                    output += data.toString();
-                });
-
-                py.stderr.on('data', (data: Buffer) => {
-                    errorOutput += data.toString();
-                });
-
-                py.on('close', (code: number) => {
-                    if (code !== 0) {
-                        return reject(new Error(`Python error ${code}: ${errorOutput}`));
-                    }
-                    try {
-                        resolve(output ? JSON.parse(output) : {});
-                    } catch (error) {
-                        reject(new Error(`Output parse failed: ${(error as Error).message}`));
-                    }
-                });
-            });
-
-            // Format results
-            if (Array.isArray(result)) {
-                results.push(...result.map(item => ({ json: item })));
-            } else {
-                results.push({ json: result });
-            }
-
-        } catch (error) {
-            throw new NodeOperationError(
-                this.getNode(),
-                `Processing failed for item ${i}:\n${(error as Error).message}`,
-                { itemIndex: i }
-            );
         }
-    }
 
-    return [results];
-}
+        return [results];
+    }
 }
