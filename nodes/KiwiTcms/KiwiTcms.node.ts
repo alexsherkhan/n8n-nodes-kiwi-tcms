@@ -107,6 +107,20 @@ export class KiwiTcms implements INodeType {
                 ],
                 default: 'TestCase.filter',
             },
+            
+            {
+                displayName: 'Record ID (pk)',
+                name: 'pk',
+                type: 'number',
+                required: true,
+                displayOptions: {
+                    show: {
+                        action: ['TestCase.filter']
+                    }
+                },
+                default: 0,
+                description: 'ID записи для фильтрации',
+            },
             {
                 displayName: 'Parameters',
                 name: 'params',
