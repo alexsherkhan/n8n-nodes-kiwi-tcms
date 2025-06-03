@@ -203,93 +203,6 @@ export class KiwiTcms implements INodeType {
             },
 
             {
-    displayName: 'TestPlan.create Parameters',
-    name: 'testplan_create_params',
-    type: 'collection',
-    placeholder: 'Add Parameter',
-    default: {},
-    displayOptions: {
-        show: {
-            action: ['TestPlan.create']
-        }
-    },
-    options: [
-        {
-            displayName: 'Product ID',
-            name: 'product',
-            type: 'number',
-            required: true,
-            default: 3,
-            description: 'Product ID',
-        },
-        {
-            displayName: 'Product Name',
-            name: 'product__name',
-            type: 'string',
-            required: true,
-            default: 'FastReport .NET',
-            description: 'Product display name',
-        },
-        {
-            displayName: 'Product Version',
-            name: 'product_version',
-            type: 'number',
-            required: true,
-            default: 3,
-            description: 'Product version',
-        },
-        {
-            displayName: 'Plan Name',
-            name: 'name',
-            type: 'string',
-            required: true,
-            default: '',
-            description: 'Name test plan',
-        },
-        {
-            displayName: 'Plan Type ID',
-            name: 'type',
-            type: 'number',
-            required: true,
-            default: 5,
-            description: 'Type test plan (5 = Acceptance)',
-        },
-        {
-            displayName: 'Plan Type Name',
-            name: 'type__name',
-            type: 'string',
-            required: true,
-            default: 'Acceptance ',
-            description: 'Type display name',
-        },
-        {
-            displayName: 'Description',
-            name: 'text',
-            type: 'string',
-            typeOptions: {
-                rows: 4,
-            },
-            default: '',
-            description: 'Description test plan',
-        },
-        {
-            displayName: 'Extra Link',
-            name: 'extra_link',
-            type: 'string',
-            default: '',
-            description: 'Extra link test plan',
-        },
-        {
-            displayName: 'Is Active',
-            name: 'is_active',
-            type: 'boolean',
-            default: true,
-            description: 'Is active',
-        }
-    ]
-},
-
-            {
                 displayName: 'Parameters',
                 name: 'params',
                 type: 'json',
@@ -297,7 +210,7 @@ export class KiwiTcms implements INodeType {
                 description: 'JSON object with parameters for the selected action',
                 displayOptions: {
                     hide: {
-                        action: ['TestCase.filter', 'TestCase.create','TestPlan.create']
+                        action: ['TestCase.filter', 'TestCase.create']
                     }
                 }
             },
@@ -400,21 +313,6 @@ async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
                         text: this.getNodeParameter('text', i) as string,
                     };
                 }
-                // Processing TestPlan.create
-                else if (action === 'TestPlan.create') {
-    params = {
-        product: this.getNodeParameter('testplan_create_params.product', i) as number,
-        product__name: this.getNodeParameter('testplan_create_params.product__name', i) as string,
-        product_version: this.getNodeParameter('testplan_create_params.product_version', i) as number,
-        name: this.getNodeParameter('testplan_create_params.name', i) as string,
-        type: this.getNodeParameter('testplan_create_params.type', i) as number,
-        type__name: this.getNodeParameter('testplan_create_params.type__name', i) as string,
-        text: this.getNodeParameter('testplan_create_params.text', i, '') as string,
-        extra_link: this.getNodeParameter('testplan_create_params.extra_link', i, '') as string,
-        is_active: this.getNodeParameter('testplan_create_params.is_active', i, true) as boolean,
-        parent: null
-    };
-}
                 // Processing of other methods
                 else {
                     const rawParams = this.getNodeParameter('params', i) as string;
