@@ -346,6 +346,110 @@ export class KiwiTcms implements INodeType {
     default: 0,
     description: 'ID of test case to add',
 },
+{
+    displayName: 'Plan ID',
+    name: 'plan_id',
+    type: 'number',
+    required: true,
+    displayOptions: {
+        show: {
+            action: ['TestRun.create']
+        }
+    },
+    default: 0,
+    description: 'ID of the test plan',
+},
+{
+    displayName: 'Build ID',
+    name: 'build_id',
+    type: 'number',
+    required: true,
+    displayOptions: {
+        show: {
+            action: ['TestRun.create']
+        }
+    },
+    default: 0,
+    description: 'ID of the build',
+},
+{
+    displayName: 'Run Name',
+    name: 'run_name',
+    type: 'string',
+    required: true,
+    displayOptions: {
+        show: {
+            action: ['TestRun.create']
+        }
+    },
+    default: '',
+    description: 'Name of the test run',
+},
+{
+    displayName: 'Manager ID',
+    name: 'manager_id',
+    type: 'number',
+    required: true,
+    displayOptions: {
+        show: {
+            action: ['TestRun.create']
+        }
+    },
+    default: 0,
+    description: 'ID of the manager',
+},
+{
+    displayName: 'Product Version ID',
+    name: 'product_version_id',
+    type: 'number',
+    required: true,
+    displayOptions: {
+        show: {
+            action: ['TestRun.create']
+        }
+    },
+    default: 0,
+    description: 'Product version ID',
+},
+{
+    displayName: 'Description',
+    name: 'run_description',
+    type: 'string',
+    typeOptions: {
+        rows: 4
+    },
+    displayOptions: {
+        show: {
+            action: ['TestRun.create']
+        }
+    },
+    default: '',
+    description: 'Test run description',
+},
+{
+    displayName: 'Environment ID',
+    name: 'environment_id',
+    type: 'number',
+    displayOptions: {
+        show: {
+            action: ['TestRun.create']
+        }
+    },
+    default: 0,
+    description: 'Environment ID',
+},
+{
+    displayName: 'Is Active',
+    name: 'is_active',
+    type: 'boolean',
+    displayOptions: {
+        show: {
+            action: ['TestRun.create']
+        }
+    },
+     default: true,
+    description: 'Whether the test run is active',
+},
 
             {
                 displayName: 'Parameters',
@@ -355,7 +459,7 @@ export class KiwiTcms implements INodeType {
                 description: 'JSON object with parameters for the selected action',
                 displayOptions: {
                     hide: {
-                        action: ['TestCase.filter', 'TestCase.create','TestPlan.create','TestPlan.add_case']
+                        action: ['TestCase.filter', 'TestCase.create','TestPlan.create','TestPlan.add_case','TestRun.create']
                     }
                 }
             },
@@ -479,6 +583,19 @@ async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
                     params = {
                     plan_id: this.getNodeParameter('plan_id', i) as number,
                     case_id: this.getNodeParameter('case_id', i) as number
+                    };
+                }
+                 // Processing TestRun.create
+                else if (action === 'TestRun.create') {
+                    params = {
+                    plan: this.getNodeParameter('plan_id', i) as number,
+                    build: this.getNodeParameter('build_id', i) as number,
+                    name: this.getNodeParameter('run_name', i) as string,
+                    manager: this.getNodeParameter('manager_id', i) as number,
+                    product_version: this.getNodeParameter('product_version_id', i) as number,
+                    description: this.getNodeParameter('run_description', i, '') as string,
+                    environment: this.getNodeParameter('environment_id', i, 0) as number,
+                    is_active: this.getNodeParameter('is_active', i, true) as boolean
                     };
                 }
                 // Processing of other methods
