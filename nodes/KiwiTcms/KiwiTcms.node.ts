@@ -318,7 +318,7 @@ export class KiwiTcms implements INodeType {
     },
     default: true,
     description: 'Is active',
-}
+},
 
             {
                 displayName: 'Parameters',
