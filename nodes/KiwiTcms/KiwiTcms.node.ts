@@ -203,6 +203,124 @@ export class KiwiTcms implements INodeType {
             },
 
             {
+    displayName: 'Product ID',
+    name: 'product',
+    type: 'number',
+    required: true,
+    displayOptions: {
+        show: {
+            action: ['TestPlan.create']
+        }
+    },
+    default: 3,
+    description: 'Product ID',
+},
+{
+    displayName: 'Product Version',
+    name: 'product_version',
+    type: 'number',
+    required: true,
+    displayOptions: {
+        show: {
+            action: ['TestPlan.create']
+        }
+    },
+    default: 3,
+    description: 'Product version',
+},
+{
+    displayName: 'Product Name',
+    name: 'product__name',
+    type: 'string',
+    required: true,
+    displayOptions: {
+        show: {
+            action: ['TestPlan.create']
+        }
+    },
+    default: 'FastReport .NET',
+    description: 'Product display name',
+},
+{
+    displayName: 'Plan Name',
+    name: 'name',
+    type: 'string',
+    required: true,
+    displayOptions: {
+        show: {
+            action: ['TestPlan.create']
+        }
+    },
+    default: '',
+    description: 'Name of test plan',
+},
+{
+    displayName: 'Plan Type ID',
+    name: 'type',
+    type: 'number',
+    required: true,
+    displayOptions: {
+        show: {
+            action: ['TestPlan.create']
+        }
+    },
+    default: 5,
+    description: 'Type test plan (5 = Acceptance)',
+},
+{
+    displayName: 'Plan Type Name',
+    name: 'type__name',
+    type: 'string',
+    required: true,
+    displayOptions: {
+        show: {
+            action: ['TestPlan.create']
+        }
+    },
+    default: 'Acceptance (Приемочное)',
+    description: 'Type display name',
+},
+{
+    displayName: 'Description',
+    name: 'text',
+    type: 'string',
+    typeOptions: {
+        rows: 4,
+    },
+    displayOptions: {
+        show: {
+            action: ['TestPlan.create']
+        }
+    },
+    default: '',
+    description: 'Description test plan',
+},
+{
+    displayName: 'Extra Link',
+    name: 'extra_link',
+    type: 'string',
+    displayOptions: {
+        show: {
+            action: ['TestPlan.create']
+        }
+    },
+    default: '',
+    description: 'Extra link test plan',
+},
+{
+    displayName: 'Is Active',
+    name: 'is_active',
+    type: 'boolean',
+    displayOptions: {
+        show: {
+            action: ['TestPlan.create']
+        }
+    },
+    default: true,
+    description: 'Is active',
+}
+
+            {
                 displayName: 'Parameters',
                 name: 'params',
                 type: 'json',
@@ -210,7 +328,7 @@ export class KiwiTcms implements INodeType {
                 description: 'JSON object with parameters for the selected action',
                 displayOptions: {
                     hide: {
-                        action: ['TestCase.filter', 'TestCase.create']
+                        action: ['TestCase.filter', 'TestCase.create','TestPlan.create']
                     }
                 }
             },
@@ -312,7 +430,23 @@ async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
                         author: this.getNodeParameter('author', i) as number,
                         text: this.getNodeParameter('text', i) as string,
                     };
+                    
                 }
+                // Processing TestPlan.create
+                else if (action === 'TestPlan.create') {
+                    params = {
+                    product: this.getNodeParameter('product', i) as number,
+                    product_version: this.getNodeParameter('product_version', i) as number,
+                    product__name: this.getNodeParameter('product__name', i) as string,
+                    name: this.getNodeParameter('name', i) as string,
+                    type: this.getNodeParameter('type', i) as number,
+                    type__name: this.getNodeParameter('type__name', i) as string,
+                    text: this.getNodeParameter('text', i, '') as string,
+                    extra_link: this.getNodeParameter('extra_link', i, '') as string,
+                    is_active: this.getNodeParameter('is_active', i, true) as boolean,
+                    parent: null
+    };
+}
                 // Processing of other methods
                 else {
                     const rawParams = this.getNodeParameter('params', i) as string;
