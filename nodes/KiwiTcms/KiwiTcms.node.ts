@@ -203,6 +203,77 @@ export class KiwiTcms implements INodeType {
             },
 
             {
+                displayName: 'TestPlan.create Parameters',
+                name: 'testplan_create_params',
+                type: 'collection',
+                placeholder: 'Add Parameter',
+                default: {},
+                displayOptions: {
+                    show: {
+                        action: ['TestPlan.create']
+                    }
+                },
+                options: [
+                    {
+                        displayName: 'Product ID',
+                        name: 'product',
+                        type: 'number',
+                        required: true,
+                        default: 3,
+                        description: 'Product ID',
+                    },
+                    {
+                        displayName: 'Product Version',
+                        name: 'product_version',
+                        type: 'number',
+                        required: true,
+                        default: 3,
+                        description: 'Product version',
+                    },
+                    {
+                        displayName: 'Plan Name',
+                        name: 'name',
+                        type: 'string',
+                        required: true,
+                        default: '',
+                        description: 'Name test plan',
+                    },
+                    {
+                        displayName: 'Plan Type ID',
+                        name: 'type',
+                        type: 'number',
+                        required: true,
+                        default: 5,
+                        description: 'Type test plan (5 = Acceptance)',
+                    },
+                    {
+                        displayName: 'Description',
+                        name: 'text',
+                        type: 'string',
+                        typeOptions: {
+                            rows: 4,
+                        },
+                        default: '',
+                        description: 'Description test plan',
+                    },
+                    {
+                        displayName: 'Extra Link',
+                        name: 'extra_link',
+                        type: 'string',
+                        default: '',
+                        description: 'Extra link test plan',
+                    },
+                    {
+                        displayName: 'Is Active',
+                        name: 'is_active',
+                        type: 'boolean',
+                        default: true,
+                        description: 'Is active',
+                    }
+                ]
+            },
+
+            {
                 displayName: 'Parameters',
                 name: 'params',
                 type: 'json',
@@ -311,6 +382,22 @@ async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
                         priority: this.getNodeParameter('priority', i) as number,
                         author: this.getNodeParameter('author', i) as number,
                         text: this.getNodeParameter('text', i) as string,
+                    };
+                }
+                // Processing TestPlan.create
+                else if (action === 'TestPlan.create') {
+                    const createParams = this.getNodeParameter('testplan_create_params', i, {}) as any;
+                    params = {
+                        product: createParams.product,
+                        product_version: createParams.product_version,
+                        name: createParams.name,
+                        type: createParams.type,
+                        text: createParams.text,
+                        extra_link: createParams.extra_link,
+                        is_active: createParams.is_active,
+                        product__name: createParams.product__name,
+                        type__name: createParams.type__name,
+                        parent: null
                     };
                 }
                 // Processing of other methods
