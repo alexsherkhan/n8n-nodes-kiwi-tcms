@@ -127,6 +127,91 @@ export class KiwiTcms implements INodeType {
                 type: 'json',
                 default: '{}',
                 description: 'JSON object with parameters for the selected action',
+                displayOptions: {
+                    hide: {
+                        action: ['TestCase.filter', 'TestCase.create']
+                    }
+                }
+            },
+            {
+                displayName: 'Summary',
+                name: 'summary',
+                type: 'string',
+                required: true,
+                displayOptions: {
+                    show: {
+                        action: ['TestCase.create']
+                    }
+                },
+                default: '',
+                description: 'Brief description of the test case',
+            },
+            {
+                displayName: 'Case Status ID',
+                name: 'case_status',
+                type: 'number',
+                required: true,
+                displayOptions: {
+                    show: {
+                        action: ['TestCase.create']
+                    }
+                },
+                default: 2,
+                description: 'Test case status',
+            },
+            {
+                displayName: 'Category ID',
+                name: 'category',
+                type: 'number',
+                required: true,
+                displayOptions: {
+                    show: {
+                        action: ['TestCase.create']
+                    }
+                },
+                default: 4,
+                description: 'ID Category',
+            },
+            {
+                displayName: 'Priority ID',
+                name: 'priority',
+                type: 'number',
+                required: true,
+                displayOptions: {
+                    show: {
+                        action: ['TestCase.create']
+                    }
+                },
+                default: 1,
+                description: 'Test case priority',
+            },
+            {
+                displayName: 'Author ID',
+                name: 'author',
+                type: 'number',
+                required: true,
+                displayOptions: {
+                    show: {
+                        action: ['TestCase.create']
+                    }
+                },
+                default: 25,
+                description: 'Test case author ID ',
+            },
+            {
+                displayName: 'Test Steps',
+                name: 'text',
+                type: 'string',
+                typeOptions: {
+                    rows: 4,
+                },
+                displayOptions: {
+                    show: {
+                        action: ['TestCase.create']
+                    }
+                },
+                default: '',
+                description: 'Test case steps (support Markdown)',
             },
         ],
     };
@@ -204,18 +289,35 @@ async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
                 const credentials = await this.getCredentials('kiwiTcmsApi');
                 const { url, username, password } = credentials;
                 const action = this.getNodeParameter('action', i) as string;
-                const rawParams = this.getNodeParameter('params', i) as string;
-
-                // Parse with specialized parser
+                
                 let params = {};
-                if (rawParams.trim()) {
-                    params = kiwiJsonParse(rawParams);
-                }
 
-                // add pk for TestCase.filter
+                // Processing TestCase.filter
                 if (action === 'TestCase.filter') {
                     const pk = this.getNodeParameter('pk', i) as number;
-                    params = { ...params, pk };
+                    const rawParams = this.getNodeParameter('params', i, '{}') as string;
+                    params = { pk };
+                    if (rawParams.trim()) {
+                        params = { ...params, ...kiwiJsonParse(rawParams) };
+                    }
+                }
+                // Processing TestCase.create
+                else if (action === 'TestCase.create') {
+                    params = {
+                        summary: this.getNodeParameter('summary', i) as string,
+                        case_status: this.getNodeParameter('case_status', i) as number,
+                        category: this.getNodeParameter('category', i) as number,
+                        priority: this.getNodeParameter('priority', i) as number,
+                        author: this.getNodeParameter('author', i) as number,
+                        text: this.getNodeParameter('text', i) as string,
+                    };
+                }
+                // Processing of other methods
+                else {
+                    const rawParams = this.getNodeParameter('params', i) as string;
+                    if (rawParams.trim()) {
+                        params = kiwiJsonParse(rawParams);
+                    }
                 }
 
                 // Execute Python script
