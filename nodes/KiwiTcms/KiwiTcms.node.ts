@@ -203,75 +203,91 @@ export class KiwiTcms implements INodeType {
             },
 
             {
-                displayName: 'TestPlan.create Parameters',
-                name: 'testplan_create_params',
-                type: 'collection',
-                placeholder: 'Add Parameter',
-                default: {},
-                displayOptions: {
-                    show: {
-                        action: ['TestPlan.create']
-                    }
-                },
-                options: [
-                    {
-                        displayName: 'Product ID',
-                        name: 'product',
-                        type: 'number',
-                        required: true,
-                        default: 3,
-                        description: 'Product ID',
-                    },
-                    {
-                        displayName: 'Product Version',
-                        name: 'product_version',
-                        type: 'number',
-                        required: true,
-                        default: 3,
-                        description: 'Product version',
-                    },
-                    {
-                        displayName: 'Plan Name',
-                        name: 'name',
-                        type: 'string',
-                        required: true,
-                        default: '',
-                        description: 'Name test plan',
-                    },
-                    {
-                        displayName: 'Plan Type ID',
-                        name: 'type',
-                        type: 'number',
-                        required: true,
-                        default: 5,
-                        description: 'Type test plan (5 = Acceptance)',
-                    },
-                    {
-                        displayName: 'Description',
-                        name: 'text',
-                        type: 'string',
-                        typeOptions: {
-                            rows: 4,
-                        },
-                        default: '',
-                        description: 'Description test plan',
-                    },
-                    {
-                        displayName: 'Extra Link',
-                        name: 'extra_link',
-                        type: 'string',
-                        default: '',
-                        description: 'Extra link test plan',
-                    },
-                    {
-                        displayName: 'Is Active',
-                        name: 'is_active',
-                        type: 'boolean',
-                        default: true,
-                        description: 'Is active',
-                    }
-                ]
+    displayName: 'TestPlan.create Parameters',
+    name: 'testplan_create_params',
+    type: 'collection',
+    placeholder: 'Add Parameter',
+    default: {},
+    displayOptions: {
+        show: {
+            action: ['TestPlan.create']
+        }
+    },
+    options: [
+        {
+            displayName: 'Product ID',
+            name: 'product',
+            type: 'number',
+            required: true,
+            default: 3,
+            description: 'Product ID',
+        },
+        {
+            displayName: 'Product Name',
+            name: 'product__name',
+            type: 'string',
+            required: true,
+            default: 'FastReport .NET',
+            description: 'Product display name',
+        },
+        {
+            displayName: 'Product Version',
+            name: 'product_version',
+            type: 'number',
+            required: true,
+            default: 3,
+            description: 'Product version',
+        },
+        {
+            displayName: 'Plan Name',
+            name: 'name',
+            type: 'string',
+            required: true,
+            default: '',
+            description: 'Name test plan',
+        },
+        {
+            displayName: 'Plan Type ID',
+            name: 'type',
+            type: 'number',
+            required: true,
+            default: 5,
+            description: 'Type test plan (5 = Acceptance)',
+        },
+        {
+            displayName: 'Plan Type Name',
+            name: 'type__name',
+            type: 'string',
+            required: true,
+            default: 'Acceptance ',
+            description: 'Type display name',
+        },
+        {
+            displayName: 'Description',
+            name: 'text',
+            type: 'string',
+            typeOptions: {
+                rows: 4,
             },
+            default: '',
+            description: 'Description test plan',
+        },
+        {
+            displayName: 'Extra Link',
+            name: 'extra_link',
+            type: 'string',
+            default: '',
+            description: 'Extra link test plan',
+        },
+        {
+            displayName: 'Is Active',
+            name: 'is_active',
+            type: 'boolean',
+            default: true,
+            description: 'Is active',
+        }
+    ]
+},
 
             {
                 displayName: 'Parameters',
@@ -385,20 +401,55 @@ async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
                     };
                 }
                 // Processing TestPlan.create
-                else if (action === 'TestPlan.create') {                   
-                    params = {
-                        product: this.getNodeParameter('product', i) as string,
-                        product_version: this.getNodeParameter('case_status', i) as number,
-                        name: this.getNodeParameter('case_status', i) as string,
-                        type: this.getNodeParameter('case_status', i) as number,
-                        text: this.getNodeParameter('case_status', i) as string,
-                        extra_link: this.getNodeParameter('case_status', i) as string,
-                        is_active: this.getNodeParameter('case_status', i) as number,
-                        product__name: this.getNodeParameter('case_status', i) as string,
-                        type__name: this.getNodeParameter('case_status', i) as string,
-                        parent: null
-                    };
-                }
+else if (action === 'TestPlan.create') {
+    const createParams = this.getNodeParameter('testplan_create_params', i, {}) as {
+        product?: number;
+        product__name?: string;
+        product_version?: number;
+        name?: string;
+        type?: number;
+        type__name?: string;
+        text?: string;
+        extra_link?: string;
+        is_active?: boolean;
+    };
+    
+    // Checking mandatory fields with explicit type specification
+    const requiredFields: Array<keyof typeof createParams> = [
+        'product', 
+        'product__name', 
+        'product_version', 
+        'name', 
+        'type', 
+        'type__name'
+    ];
+    
+    const missingFields = requiredFields.filter(field => 
+        createParams[field] === undefined || createParams[field] === ''
+    );
+    
+    if (missingFields.length > 0) {
+        throw new NodeOperationError(
+            this.getNode(),
+            `Missing required parameters for TestPlan.create: ${missingFields.join(', ')}`,
+            { itemIndex: i }
+        );
+    }
+
+    // Explicit type conversion for mandatory fields
+    params = {
+        product: createParams.product as number,
+        product__name: createParams.product__name as string,
+        product_version: createParams.product_version as number,
+        name: createParams.name as string,
+        type: createParams.type as number,
+        type__name: createParams.type__name as string,
+        text: createParams.text || '',
+        extra_link: createParams.extra_link || '',
+        is_active: createParams.is_active !== undefined ? createParams.is_active : true,
+        parent: null
+    };
+}
                 // Processing of other methods
                 else {
                     const rawParams = this.getNodeParameter('params', i) as string;
