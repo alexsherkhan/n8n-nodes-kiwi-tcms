@@ -385,18 +385,17 @@ async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
                     };
                 }
                 // Processing TestPlan.create
-                else if (action === 'TestPlan.create') {
-                    const createParams = this.getNodeParameter('testplan_create_params', i, {}) as any;
+                else if (action === 'TestPlan.create') {                   
                     params = {
-                        product: createParams.product,
-                        product_version: createParams.product_version,
-                        name: createParams.name,
-                        type: createParams.type,
-                        text: createParams.text,
-                        extra_link: createParams.extra_link,
-                        is_active: createParams.is_active,
-                        product__name: createParams.product__name,
-                        type__name: createParams.type__name,
+                        product: this.getNodeParameter('product', i) as string,
+                        product_version: this.getNodeParameter('case_status', i) as number,
+                        name: this.getNodeParameter('case_status', i) as string,
+                        type: this.getNodeParameter('case_status', i) as number,
+                        text: this.getNodeParameter('case_status', i) as string,
+                        extra_link: this.getNodeParameter('case_status', i) as string,
+                        is_active: this.getNodeParameter('case_status', i) as number,
+                        product__name: this.getNodeParameter('case_status', i) as string,
+                        type__name: this.getNodeParameter('case_status', i) as string,
                         parent: null
                     };
                 }
