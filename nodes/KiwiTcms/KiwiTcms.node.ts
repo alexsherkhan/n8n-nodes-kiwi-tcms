@@ -345,7 +345,7 @@ export class KiwiTcms implements INodeType {
     },
     default: 0,
     description: 'ID of test case to add',
-}
+},
 
             {
                 displayName: 'Parameters',
