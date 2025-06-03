@@ -373,19 +373,6 @@ export class KiwiTcms implements INodeType {
     description: 'ID of the build',
 },
 {
-    displayName: 'Run Name',
-    name: 'run_name',
-    type: 'string',
-    required: true,
-    displayOptions: {
-        show: {
-            action: ['TestRun.create']
-        }
-    },
-    default: '',
-    description: 'Name of the test run',
-},
-{
     displayName: 'Manager ID',
     name: 'manager_id',
     type: 'number',
@@ -399,56 +386,17 @@ export class KiwiTcms implements INodeType {
     description: 'ID of the manager',
 },
 {
-    displayName: 'Product Version ID',
-    name: 'product_version_id',
-    type: 'number',
+    displayName: 'Summary',
+    name: 'summary',
+    type: 'string',
     required: true,
     displayOptions: {
         show: {
             action: ['TestRun.create']
         }
     },
-    default: 0,
-    description: 'Product version ID',
-},
-{
-    displayName: 'Description',
-    name: 'run_description',
-    type: 'string',
-    typeOptions: {
-        rows: 4
-    },
-    displayOptions: {
-        show: {
-            action: ['TestRun.create']
-        }
-    },
     default: '',
-    description: 'Test run description',
-},
-{
-    displayName: 'Environment ID',
-    name: 'environment_id',
-    type: 'number',
-    displayOptions: {
-        show: {
-            action: ['TestRun.create']
-        }
-    },
-    default: 0,
-    description: 'Environment ID',
-},
-{
-    displayName: 'Is Active',
-    name: 'is_active',
-    type: 'boolean',
-    displayOptions: {
-        show: {
-            action: ['TestRun.create']
-        }
-    },
-     default: true,
-    description: 'Whether the test run is active',
+    description: 'Test run summary/name',
 },
 
             {
@@ -587,17 +535,13 @@ async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
                 }
                  // Processing TestRun.create
                 else if (action === 'TestRun.create') {
-                    params = {
+                params = {
                     plan: this.getNodeParameter('plan_id', i) as number,
                     build: this.getNodeParameter('build_id', i) as number,
-                    name: this.getNodeParameter('run_name', i) as string,
                     manager: this.getNodeParameter('manager_id', i) as number,
-                    product_version: this.getNodeParameter('product_version_id', i) as number,
-                    description: this.getNodeParameter('run_description', i, '') as string,
-                    environment: this.getNodeParameter('environment_id', i, 0) as number,
-                    is_active: this.getNodeParameter('is_active', i, true) as boolean
-                    };
-                }
+                    summary: this.getNodeParameter('summary', i) as string
+                };
+}
                 // Processing of other methods
                 else {
                     const rawParams = this.getNodeParameter('params', i) as string;
