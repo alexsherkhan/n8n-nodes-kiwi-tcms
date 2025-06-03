@@ -122,18 +122,6 @@ export class KiwiTcms implements INodeType {
                 description: 'ID case',
             },
             {
-                displayName: 'Parameters',
-                name: 'params',
-                type: 'json',
-                default: '{}',
-                description: 'JSON object with parameters for the selected action',
-                displayOptions: {
-                    hide: {
-                        action: ['TestCase.filter', 'TestCase.create']
-                    }
-                }
-            },
-            {
                 displayName: 'Summary',
                 name: 'summary',
                 type: 'string',
@@ -212,6 +200,19 @@ export class KiwiTcms implements INodeType {
                 },
                 default: '',
                 description: 'Test case steps (support Markdown)',
+            },
+
+            {
+                displayName: 'Parameters',
+                name: 'params',
+                type: 'json',
+                default: '{}',
+                description: 'JSON object with parameters for the selected action',
+                displayOptions: {
+                    hide: {
+                        action: ['TestCase.filter', 'TestCase.create']
+                    }
+                }
             },
         ],
     };
