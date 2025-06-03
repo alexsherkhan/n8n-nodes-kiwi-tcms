@@ -402,57 +402,16 @@ async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
                 }
                 // Processing TestPlan.create
                 else if (action === 'TestPlan.create') {
-    // Get all parameters from the collection
-    const createParams = this.getNodeParameter('testplan_create_params', i, {});
-    
-    // Validate required parameters
-    const requiredParams = [
-        { name: 'product', type: 'number' },
-        { name: 'product__name', type: 'string' },
-        { name: 'product_version', type: 'number' },
-        { name: 'name', type: 'string' },
-        { name: 'type', type: 'number' },
-        { name: 'type__name', type: 'string' }
-    ];
-
-    const missingParams: string[] = [];
-    const invalidTypes: string[] = [];
-
-    requiredParams.forEach((param) => {
-        if (createParams[param.name] === undefined || createParams[param.name] === '') {
-            missingParams.push(param.name);
-        } else if (typeof createParams[param.name] !== param.type) {
-            invalidTypes.push(`${param.name} (expected ${param.type}, got ${typeof createParams[param.name]})`);
-        }
-    });
-
-    if (missingParams.length > 0) {
-        throw new NodeOperationError(
-            this.getNode(),
-            `Missing required parameters for TestPlan.create: ${missingParams.join(', ')}`,
-            { itemIndex: i }
-        );
-    }
-
-    if (invalidTypes.length > 0) {
-        throw new NodeOperationError(
-            this.getNode(),
-            `Invalid parameter types for TestPlan.create: ${invalidTypes.join(', ')}`,
-            { itemIndex: i }
-        );
-    }
-
-    // Build params object with proper typing
     params = {
-        product: Number(createParams.product),
-        product__name: String(createParams.product__name),
-        product_version: Number(createParams.product_version),
-        name: String(createParams.name),
-        type: Number(createParams.type),
-        type__name: String(createParams.type__name),
-        text: createParams.text ? String(createParams.text) : '',
-        extra_link: createParams.extra_link ? String(createParams.extra_link) : '',
-        is_active: createParams.is_active !== undefined ? Boolean(createParams.is_active) : true,
+        product: this.getNodeParameter('testplan_create_params.product', i) as number,
+        product__name: this.getNodeParameter('testplan_create_params.product__name', i) as string,
+        product_version: this.getNodeParameter('testplan_create_params.product_version', i) as number,
+        name: this.getNodeParameter('testplan_create_params.name', i) as string,
+        type: this.getNodeParameter('testplan_create_params.type', i) as number,
+        type__name: this.getNodeParameter('testplan_create_params.type__name', i) as string,
+        text: this.getNodeParameter('testplan_create_params.text', i, '') as string,
+        extra_link: this.getNodeParameter('testplan_create_params.extra_link', i, '') as string,
+        is_active: this.getNodeParameter('testplan_create_params.is_active', i, true) as boolean,
         parent: null
     };
 }
