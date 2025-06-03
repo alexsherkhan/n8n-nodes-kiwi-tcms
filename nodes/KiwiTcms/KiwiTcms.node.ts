@@ -320,6 +320,33 @@ export class KiwiTcms implements INodeType {
     description: 'Is active',
 },
 
+{
+    displayName: 'Test Plan ID',
+    name: 'plan_id',
+    type: 'number',
+    required: true,
+    displayOptions: {
+        show: {
+            action: ['TestPlan.add_case']
+        }
+    },
+    default: 0,
+    description: 'ID of test plan to add case to',
+},
+{
+    displayName: 'Test Case ID',
+    name: 'case_id',
+    type: 'number',
+    required: true,
+    displayOptions: {
+        show: {
+            action: ['TestPlan.add_case']
+        }
+    },
+    default: 0,
+    description: 'ID of test case to add',
+}
+
             {
                 displayName: 'Parameters',
                 name: 'params',
@@ -445,8 +472,15 @@ async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
                     extra_link: this.getNodeParameter('extra_link', i, '') as string,
                     is_active: this.getNodeParameter('is_active', i, true) as boolean,
                     parent: null
-    };
-}
+                    };
+                }
+                // Processing TestPlan.add_case
+                else if (action === 'TestPlan.add_case') {
+                    params = {
+                    plan_id: this.getNodeParameter('plan_id', i) as number,
+                    case_id: this.getNodeParameter('case_id', i) as number
+                    };
+                }
                 // Processing of other methods
                 else {
                     const rawParams = this.getNodeParameter('params', i) as string;
