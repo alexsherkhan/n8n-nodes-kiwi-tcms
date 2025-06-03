@@ -355,7 +355,7 @@ export class KiwiTcms implements INodeType {
                 description: 'JSON object with parameters for the selected action',
                 displayOptions: {
                     hide: {
-                        action: ['TestCase.filter', 'TestCase.create','TestPlan.create']
+                        action: ['TestCase.filter', 'TestCase.create','TestPlan.create','TestPlan.add_case']
                     }
                 }
             },
