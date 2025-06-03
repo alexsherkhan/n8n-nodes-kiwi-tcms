@@ -401,52 +401,58 @@ async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
                     };
                 }
                 // Processing TestPlan.create
-else if (action === 'TestPlan.create') {
-    const createParams = this.getNodeParameter('testplan_create_params', i, {}) as {
-        product?: number;
-        product__name?: string;
-        product_version?: number;
-        name?: string;
-        type?: number;
-        type__name?: string;
-        text?: string;
-        extra_link?: string;
-        is_active?: boolean;
-    };
+                else if (action === 'TestPlan.create') {
+    // Get all parameters from the collection
+    const createParams = this.getNodeParameter('testplan_create_params', i, {});
     
-    // Checking mandatory fields with explicit type specification
-    const requiredFields: Array<keyof typeof createParams> = [
-        'product', 
-        'product__name', 
-        'product_version', 
-        'name', 
-        'type', 
-        'type__name'
+    // Validate required parameters
+    const requiredParams = [
+        { name: 'product', type: 'number' },
+        { name: 'product__name', type: 'string' },
+        { name: 'product_version', type: 'number' },
+        { name: 'name', type: 'string' },
+        { name: 'type', type: 'number' },
+        { name: 'type__name', type: 'string' }
     ];
-    
-    const missingFields = requiredFields.filter(field => 
-        createParams[field] === undefined || createParams[field] === ''
-    );
-    
-    if (missingFields.length > 0) {
+
+    const missingParams: string[] = [];
+    const invalidTypes: string[] = [];
+
+    requiredParams.forEach((param) => {
+        if (createParams[param.name] === undefined || createParams[param.name] === '') {
+            missingParams.push(param.name);
+        } else if (typeof createParams[param.name] !== param.type) {
+            invalidTypes.push(`${param.name} (expected ${param.type}, got ${typeof createParams[param.name]})`);
+        }
+    });
+
+    if (missingParams.length > 0) {
         throw new NodeOperationError(
             this.getNode(),
-            `Missing required parameters for TestPlan.create: ${missingFields.join(', ')}`,
+            `Missing required parameters for TestPlan.create: ${missingParams.join(', ')}`,
             { itemIndex: i }
         );
     }
 
-    // Explicit type conversion for mandatory fields
+    if (invalidTypes.length > 0) {
+        throw new NodeOperationError(
+            this.getNode(),
+            `Invalid parameter types for TestPlan.create: ${invalidTypes.join(', ')}`,
+            { itemIndex: i }
+        );
+    }
+
+    // Build params object with proper typing
     params = {
-        product: createParams.product as number,
-        product__name: createParams.product__name as string,
-        product_version: createParams.product_version as number,
-        name: createParams.name as string,
-        type: createParams.type as number,
-        type__name: createParams.type__name as string,
-        text: createParams.text || '',
-        extra_link: createParams.extra_link || '',
-        is_active: createParams.is_active !== undefined ? createParams.is_active : true,
+        product: Number(createParams.product),
+        product__name: String(createParams.product__name),
+        product_version: Number(createParams.product_version),
+        name: String(createParams.name),
+        type: Number(createParams.type),
+        type__name: String(createParams.type__name),
+        text: createParams.text ? String(createParams.text) : '',
+        extra_link: createParams.extra_link ? String(createParams.extra_link) : '',
+        is_active: createParams.is_active !== undefined ? Boolean(createParams.is_active) : true,
         parent: null
     };
 }
