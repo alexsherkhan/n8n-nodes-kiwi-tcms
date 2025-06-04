@@ -4,10 +4,6 @@ from tcms_api import TCMS
 
 def main():
     try:
-        import sys
-        import json
-        from tcms_api import TCMS
-
         raw_input = sys.stdin.read()
         args = json.loads(raw_input)
         
@@ -21,14 +17,19 @@ def main():
         rpc_method = getattr(getattr(client.exec, obj), method)
         
         
-        if args["action"] == "TestPlan.add_case":
-            result = rpc_method(args["params"]["plan_id"], args["params"]["case_id"])
+        if args["action"] in ["TestPlan.add_case", "TestRun.add_case"]:
+            if isinstance(args["params"], dict):
+                
+                if args["action"] == "TestPlan.add_case":
+                    result = rpc_method(args["params"]["plan_id"], args["params"]["case_id"])
+                elif args["action"] == "TestRun.add_case":
+                    result = rpc_method(args["params"]["run_id"], args["params"]["case_id"])
+            else:
+                
+                result = rpc_method(*args["params"])
         else:
             
-            if isinstance(args.get("params"), list):
-                result = rpc_method(*args["params"])
-            else:
-                result = rpc_method(args.get("params", {}))
+            result = rpc_method(args.get("params", {}))
         
         print(json.dumps(result, default=str))
         
