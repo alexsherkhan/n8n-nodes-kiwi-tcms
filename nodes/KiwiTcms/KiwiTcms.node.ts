@@ -398,6 +398,19 @@ export class KiwiTcms implements INodeType {
     default: '',
     description: 'Test run summary/name',
 },
+{
+    displayName: 'Default tester',
+    name: 'default_tester',
+    type: 'string',
+    required: true,
+    displayOptions: {
+        show: {
+            action: ['TestRun.create']
+        }
+    },
+    default: '',
+    description: 'Test run default tester id',
+},
 
             {
                 displayName: 'Parameters',
@@ -539,7 +552,8 @@ async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
                     plan: this.getNodeParameter('plan_id', i) as number,
                     build: this.getNodeParameter('build_id', i) as number,
                     manager: this.getNodeParameter('manager_id', i) as number,
-                    summary: this.getNodeParameter('summary', i) as string
+                    summary: this.getNodeParameter('summary', i) as string,
+                    default_tester: this.getNodeParameter('default_tester',i) as string
                 };
 }
                 // Processing of other methods
