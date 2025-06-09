@@ -18,7 +18,7 @@ def main():
         rpc_method = getattr(getattr(client.exec, obj), method)
 
         if args["action"] == "TestExecution.filter":
-
+           
             if isinstance(args["params"], dict):
                 run_id = args["params"].get("run_id") or args["params"].get("id")
             else:
@@ -27,37 +27,36 @@ def main():
             if not run_id:
                 raise ValueError("Missing run_id parameter")
             
-
+           
             executions = client.exec.TestExecution.filter({'run': run_id})
             
-
-            statuses = client.exec.TestExecutionStatus.filter({})
-            status_names = {s['id']: s['name'] for s in statuses}
-            
-
-            stats = {name: 0 for name in status_names.values()}
-            stats["TOTAL"] = len(executions)
-            
-
+        
+            status_stats = defaultdict(int)
             for execution in executions:
-                status_id = execution.get("status")
-                status_name = status_names.get(status_id, "UNKNOWN")
-                stats[status_name] += 1
+                status_name = execution.get("status__name", "UNKNOWN")
+                status_stats[status_name] += 1
+            
+       
+            stats_string = "\n".join([
+                f"PASSED - {status_stats.get('PASSED', 0)}",
+                f"WAIVED - {status_stats.get('WAIVED', 0)}",
+                f"IDLE - {status_stats.get('IDLE', 0)}",
+                f"PAUSED - {status_stats.get('PAUSED', 0)}",
+                f"RUNNING - {status_stats.get('RUNNING', 0)}",
+                f"BLOCKED - {status_stats.get('BLOCKED', 0)}",
+                f"ERROR - {status_stats.get('ERROR', 0)}",
+                f"FAILED - {status_stats.get('FAILED', 0)}",
+                f"TOTAL - {len(executions)}"
+            ])
             
 
-            result = {
-                "PASSED": stats.get("PASSED", 0),
-                "FAILED": stats.get("FAILED", 0),
-                "IDLE": stats.get("IDLE", 0),
-                "PAUSED": stats.get("PAUSED", 0),
-                "RUNNING": stats.get("RUNNING", 0),
-                "BLOCKED": stats.get("BLOCKED", 0),
-                "ERROR": stats.get("ERROR", 0),
-                "WAIVED": stats.get("WAIVED", 0),
-                "TOTAL": stats["TOTAL"]
-            }
+            result = []
+            for execution in executions:
+                execution_copy = dict(execution)
+                execution_copy["status__name"] = stats_string
+                result.append(execution_copy)
 
-
+   
         elif args["action"] in ["TestPlan.add_case", "TestRun.add_case"]:
             if isinstance(args["params"], dict):
                 if args["action"] == "TestPlan.add_case":
