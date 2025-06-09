@@ -107,12 +107,322 @@ export class KiwiTcms implements INodeType {
                 ],
                 default: 'TestCase.filter',
             },
+            
+            {
+                displayName: 'Record ID (pk)',
+                name: 'pk',
+                type: 'number',
+                required: true,
+                displayOptions: {
+                    show: {
+                        action: ['TestCase.filter']
+                    }
+                },
+                default: 0,
+                description: 'ID case',
+            },
+            {
+                displayName: 'Summary',
+                name: 'summary',
+                type: 'string',
+                required: true,
+                displayOptions: {
+                    show: {
+                        action: ['TestCase.create']
+                    }
+                },
+                default: '',
+                description: 'Brief description of the test case',
+            },
+            {
+                displayName: 'Case Status ID',
+                name: 'case_status',
+                type: 'number',
+                required: true,
+                displayOptions: {
+                    show: {
+                        action: ['TestCase.create']
+                    }
+                },
+                default: 2,
+                description: 'Test case status',
+            },
+            {
+                displayName: 'Category ID',
+                name: 'category',
+                type: 'number',
+                required: true,
+                displayOptions: {
+                    show: {
+                        action: ['TestCase.create']
+                    }
+                },
+                default: 4,
+                description: 'ID Category',
+            },
+            {
+                displayName: 'Priority ID',
+                name: 'priority',
+                type: 'number',
+                required: true,
+                displayOptions: {
+                    show: {
+                        action: ['TestCase.create']
+                    }
+                },
+                default: 1,
+                description: 'Test case priority',
+            },
+            {
+                displayName: 'Author ID',
+                name: 'author',
+                type: 'number',
+                required: true,
+                displayOptions: {
+                    show: {
+                        action: ['TestCase.create']
+                    }
+                },
+                default: 25,
+                description: 'Test case author ID ',
+            },
+            {
+                displayName: 'Test Steps',
+                name: 'text',
+                type: 'string',
+                typeOptions: {
+                    rows: 4,
+                },
+                displayOptions: {
+                    show: {
+                        action: ['TestCase.create']
+                    }
+                },
+                default: '',
+                description: 'Test case steps (support Markdown)',
+            },
+
+            {
+    displayName: 'Product ID',
+    name: 'product',
+    type: 'number',
+    required: true,
+    displayOptions: {
+        show: {
+            action: ['TestPlan.create']
+        }
+    },
+    default: 3,
+    description: 'Product ID',
+},
+{
+    displayName: 'Product Version',
+    name: 'product_version',
+    type: 'number',
+    required: true,
+    displayOptions: {
+        show: {
+            action: ['TestPlan.create']
+        }
+    },
+    default: 3,
+    description: 'Product version',
+},
+{
+    displayName: 'Product Name',
+    name: 'product__name',
+    type: 'string',
+    required: true,
+    displayOptions: {
+        show: {
+            action: ['TestPlan.create']
+        }
+    },
+    default: 'FastReport .NET',
+    description: 'Product display name',
+},
+{
+    displayName: 'Plan Name',
+    name: 'name',
+    type: 'string',
+    required: true,
+    displayOptions: {
+        show: {
+            action: ['TestPlan.create']
+        }
+    },
+    default: '',
+    description: 'Name of test plan',
+},
+{
+    displayName: 'Plan Type ID',
+    name: 'type',
+    type: 'number',
+    required: true,
+    displayOptions: {
+        show: {
+            action: ['TestPlan.create']
+        }
+    },
+    default: 5,
+    description: 'Type test plan (5 = Acceptance)',
+},
+{
+    displayName: 'Plan Type Name',
+    name: 'type__name',
+    type: 'string',
+    required: true,
+    displayOptions: {
+        show: {
+            action: ['TestPlan.create']
+        }
+    },
+    default: 'Acceptance (Приемочное)',
+    description: 'Type display name',
+},
+{
+    displayName: 'Description',
+    name: 'text',
+    type: 'string',
+    typeOptions: {
+        rows: 4,
+    },
+    displayOptions: {
+        show: {
+            action: ['TestPlan.create']
+        }
+    },
+    default: '',
+    description: 'Description test plan',
+},
+{
+    displayName: 'Extra Link',
+    name: 'extra_link',
+    type: 'string',
+    displayOptions: {
+        show: {
+            action: ['TestPlan.create']
+        }
+    },
+    default: '',
+    description: 'Extra link test plan',
+},
+{
+    displayName: 'Is Active',
+    name: 'is_active',
+    type: 'boolean',
+    displayOptions: {
+        show: {
+            action: ['TestPlan.create']
+        }
+    },
+    default: true,
+    description: 'Is active',
+},
+
+{
+    displayName: 'Test Plan ID',
+    name: 'plan_id',
+    type: 'number',
+    required: true,
+    displayOptions: {
+        show: {
+            action: ['TestPlan.add_case']
+        }
+    },
+    default: 0,
+    description: 'ID of test plan to add case to',
+},
+{
+    displayName: 'Test Case ID',
+    name: 'case_id',
+    type: 'number',
+    required: true,
+    displayOptions: {
+        show: {
+            action: ['TestPlan.add_case']
+        }
+    },
+    default: 0,
+    description: 'ID of test case to add',
+},
+{
+    displayName: 'Plan ID',
+    name: 'plan_id',
+    type: 'number',
+    required: true,
+    displayOptions: {
+        show: {
+            action: ['TestRun.create']
+        }
+    },
+    default: 0,
+    description: 'ID of the test plan',
+},
+{
+    displayName: 'Build ID',
+    name: 'build_id',
+    type: 'number',
+    required: true,
+    displayOptions: {
+        show: {
+            action: ['TestRun.create']
+        }
+    },
+    default: 0,
+    description: 'ID of the build',
+},
+{
+    displayName: 'Manager ID',
+    name: 'manager_id',
+    type: 'number',
+    required: true,
+    displayOptions: {
+        show: {
+            action: ['TestRun.create']
+        }
+    },
+    default: 0,
+    description: 'ID of the manager',
+},
+{
+    displayName: 'Summary',
+    name: 'summary',
+    type: 'string',
+    required: true,
+    displayOptions: {
+        show: {
+            action: ['TestRun.create']
+        }
+    },
+    default: '',
+    description: 'Test run summary/name',
+},
+{
+    displayName: 'Default tester',
+    name: 'default_tester',
+    type: 'string',
+    required: true,
+    displayOptions: {
+        show: {
+            action: ['TestRun.create']
+        }
+    },
+    default: '',
+    description: 'Test run default tester id',
+},
+
             {
                 displayName: 'Parameters',
                 name: 'params',
                 type: 'json',
                 default: '{}',
                 description: 'JSON object with parameters for the selected action',
+                displayOptions: {
+                    hide: {
+                        action: ['TestCase.filter', 'TestCase.create','TestPlan.create','TestPlan.add_case','TestRun.create']
+                    }
+                }
             },
         ],
     };
@@ -185,73 +495,128 @@ async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
         }
     };
 
-    for (let i = 0; i < items.length; i++) {
-        try {
-            // Get node parameters
-            const credentials = await this.getCredentials('kiwiTcmsApi');
-            const { url, username, password } = credentials;
-            const action = this.getNodeParameter('action', i) as string;
-            const rawParams = this.getNodeParameter('params', i) as string;
-
-            // Parse with specialized parser
-            let params = {};
-            if (rawParams.trim()) {
-                params = kiwiJsonParse(rawParams);
-            }
-
-            // Execute Python script
-            const result = await new Promise<any>((resolve, reject) => {
-                const scriptPath = path.join(__dirname, 'tcms_script.py');
-                const py = spawn('/usr/bin/python3', [scriptPath]);
+        for (let i = 0; i < items.length; i++) {
+            try {
+                const credentials = await this.getCredentials('kiwiTcmsApi');
+                const { url, username, password } = credentials;
+                const action = this.getNodeParameter('action', i) as string;
                 
-                let output = '';
-                let errorOutput = '';
+                let params = {};
 
-                py.stdin.write(JSON.stringify({
-                    url,
-                    username,
-                    password,
-                    action,
-                    params
-                }));
-                py.stdin.end();
-
-                py.stdout.on('data', (data: Buffer) => {
-                    output += data.toString();
-                });
-
-                py.stderr.on('data', (data: Buffer) => {
-                    errorOutput += data.toString();
-                });
-
-                py.on('close', (code: number) => {
-                    if (code !== 0) {
-                        return reject(new Error(`Python error ${code}: ${errorOutput}`));
+                // Processing TestCase.filter
+                if (action === 'TestCase.filter') {
+                    const pk = this.getNodeParameter('pk', i) as number;
+                    const rawParams = this.getNodeParameter('params', i, '{}') as string;
+                    params = { pk };
+                    if (rawParams.trim()) {
+                        params = { ...params, ...kiwiJsonParse(rawParams) };
                     }
-                    try {
-                        resolve(output ? JSON.parse(output) : {});
-                    } catch (error) {
-                        reject(new Error(`Output parse failed: ${(error as Error).message}`));
-                    }
-                });
-            });
-
-            // Format results
-            if (Array.isArray(result)) {
-                results.push(...result.map(item => ({ json: item })));
-            } else {
-                results.push({ json: result });
-            }
-
-        } catch (error) {
-            throw new NodeOperationError(
-                this.getNode(),
-                `Processing failed for item ${i}:\n${(error as Error).message}`,
-                { itemIndex: i }
-            );
-        }
-    }
-
-    return [results];
+                }
+                // Processing TestCase.create
+                else if (action === 'TestCase.create') {
+                    params = {
+                        summary: this.getNodeParameter('summary', i) as string,
+                        case_status: this.getNodeParameter('case_status', i) as number,
+                        category: this.getNodeParameter('category', i) as number,
+                        priority: this.getNodeParameter('priority', i) as number,
+                        author: this.getNodeParameter('author', i) as number,
+                        text: this.getNodeParameter('text', i) as string,
+                    };
+                    
+                }
+                // Processing TestPlan.create
+                else if (action === 'TestPlan.create') {
+                    params = {
+                    product: this.getNodeParameter('product', i) as number,
+                    product_version: this.getNodeParameter('product_version', i) as number,
+                    product__name: this.getNodeParameter('product__name', i) as string,
+                    name: this.getNodeParameter('name', i) as string,
+                    type: this.getNodeParameter('type', i) as number,
+                    type__name: this.getNodeParameter('type__name', i) as string,
+                    text: this.getNodeParameter('text', i, '') as string,
+                    extra_link: this.getNodeParameter('extra_link', i, '') as string,
+                    is_active: this.getNodeParameter('is_active', i, true) as boolean,
+                    parent: null
+                    };
+                }
+                // Processing TestPlan.add_case
+                else if (action === 'TestPlan.add_case') {
+                    params = {
+                    plan_id: this.getNodeParameter('plan_id', i) as number,
+                    case_id: this.getNodeParameter('case_id', i) as number
+                    };
+                }
+                 // Processing TestRun.create
+                else if (action === 'TestRun.create') {
+                params = {
+                    plan: this.getNodeParameter('plan_id', i) as number,
+                    build: this.getNodeParameter('build_id', i) as number,
+                    manager: this.getNodeParameter('manager_id', i) as number,
+                    summary: this.getNodeParameter('summary', i) as string,
+                    default_tester: this.getNodeParameter('default_tester',i) as string
+                };
 }
+                // Processing of other methods
+                else {
+                    const rawParams = this.getNodeParameter('params', i) as string;
+                    if (rawParams.trim()) {
+                        params = kiwiJsonParse(rawParams);
+                    }
+                }
+
+                // Execute Python script
+                const result = await new Promise<any>((resolve, reject) => {
+                    const scriptPath = path.join(__dirname, 'tcms_script.py');
+                    const py = spawn('/usr/bin/python3', [scriptPath]);
+                    
+                    let output = '';
+                    let errorOutput = '';
+
+                    py.stdin.write(JSON.stringify({
+                        url,
+                        username,
+                        password,
+                        action,
+                        params
+                    }));
+                    py.stdin.end();
+
+                    py.stdout.on('data', (data: Buffer) => {
+                        output += data.toString();
+                    });
+
+                    py.stderr.on('data', (data: Buffer) => {
+                        errorOutput += data.toString();
+                    });
+
+                    py.on('close', (code: number) => {
+                        if (code !== 0) {
+                            return reject(new Error(`Python error ${code}: ${errorOutput}`));
+                        }
+                        try {
+                            resolve(output ? JSON.parse(output) : {});
+                        } catch (error) {
+                            reject(new Error(`Output parse failed: ${(error as Error).message}`));
+                        }
+                    });
+                });
+
+                // Format results
+                if (Array.isArray(result)) {
+                    results.push(...result.map(item => ({ json: item })));
+                } else {
+                    results.push({ json: result });
+                }
+
+            } catch (error) {
+                throw new NodeOperationError(
+                    this.getNode(),
+                    `Processing failed for item ${i}:\n${(error as Error).message}`,
+                    { itemIndex: i }
+                );
+            }
+        }
+
+        return [results];
+    }
 }
